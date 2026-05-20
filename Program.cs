@@ -85,13 +85,12 @@ public class Program
         if (itemType is null || itemInfoType is null)
             return;
 
-
         var setupItemsMethod = itemType.Methods.First(m => m.Name == "SetupItems");
+        var globalItemsField = itemType.Fields.First(m => m.Name == "GlobalItems");
 
-        if (setupItemsMethod is null)
+        if (setupItemsMethod is null || globalItemsField is null)
             return;
 
-        var globalItemsField = itemType.Fields.First(m => m.Name == "GlobalItems");
 
         var methodBody = setupItemsMethod.Body;
         var instructions = methodBody.Instructions;
