@@ -1,0 +1,7 @@
+bin/
+obj/
+
+# BIG NONO
+Assembly-CSharp.dll
+output.txt
+*.lscache
