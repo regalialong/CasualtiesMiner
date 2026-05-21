@@ -4,6 +4,8 @@ obj/
 
 # BIG NONO
 Assembly-CSharp.dll
+liquids.json
+recipes.json
 output.txt
 items.json
 *.lscache
