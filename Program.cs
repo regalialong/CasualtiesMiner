@@ -2,7 +2,6 @@
 using Mono.Cecil.Cil;
 using Mono.Cecil;
 
-
 public class Program
 {
     public async static Task Main(string[] args)
@@ -46,7 +45,7 @@ public class Program
         return input;
     }
 
-    public static object ParseOperand(FieldDefinition field, List<Instruction> instructions)
+    public static object? ParseOperand(FieldDefinition field, List<Instruction> instructions)
     {
         if (field.FieldType.IsPrimitive)
         {
@@ -103,6 +102,37 @@ public class Program
                 };
         }
 
+        switch (field.FieldType.FullName)
+        {
+            case "System.Collections.Generic.List`1<CraftingQuality>":
+                var qualities = new List<Dictionary<string, object>>();
+
+                var name = "";
+                var amount = 1f;
+
+                for (int i = 0; i < instructions.Count; i++)
+                {
+                    var instruction = instructions[i];
+
+                    if (instruction.OpCode.Name == "dup")
+                        continue;
+
+                    if (instruction.OpCode.Name == "ldstr")
+                        name = (string)instruction.Operand;
+                    else if (instruction.OpCode.Name == "ldc.r4")
+                        amount = (float)instruction.Operand;
+                }
+
+                qualities.Add(new Dictionary<string, object>()
+                {
+                {    "name", name},
+                { "amount", amount}
+                });
+
+                return qualities;
+        }
+
+        Console.WriteLine($"[WARNING] Missing parser for {field.Name} of type {field.FieldType.FullName}");
         foreach (var inst in instructions)
         {
             Console.WriteLine(inst);
@@ -116,7 +146,7 @@ public class Program
     {
         Console.WriteLine("Analyzing Items...");
 
-        var itemList = new List<Dictionary<string, object>>();
+        var itemList = new List<Dictionary<string, object?>>();
 
         var itemType = module.Types.First(t => t.FullName == "Item");
         var itemInfoType = module.Types.First(t => t.FullName == "ItemInfo");
@@ -164,7 +194,7 @@ public class Program
                 if (createItemInfoObjInstruction.Operand != itemInfoType.Methods.First((p) => p.IsConstructor))
                     continue;
 
-                var itemInfo = new Dictionary<string, object>();
+                var itemInfo = new Dictionary<string, object?>();
                 itemInfo["name"] = itemName;
 
                 while (true)
