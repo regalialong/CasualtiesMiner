@@ -370,4 +370,11 @@ public class Program
         File.WriteAllText("liquids.json", JsonSerializer.Serialize(liquidList));
         return Task.CompletedTask;
     }
+
+    // TODO: Add layer info
+    // Okay so from what I know, All layer extends from `LayerModifier`?? and there's absolutely no fucking way we can parse it without inspecting
+    // Their method body (Initialize, Disable)
+
+    // TODO: Add block info
+    // Take a look at the `WorldGeneration.GetBlockInfo`, it's a big Switch case, so should be easy? idrk
 }
