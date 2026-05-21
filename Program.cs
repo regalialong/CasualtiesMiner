@@ -2,7 +2,6 @@
 using System.Text.Json;
 using Mono.Cecil.Cil;
 using Mono.Cecil;
-using Mono.Cecil.Rocks;
 
 public class Program
 {
@@ -34,10 +33,10 @@ public class Program
         }
 
         await Task.WhenAll(
-            AnalyzeItems(module),
-            AnalyzeRecipes(module),
-            AnalyzeLiquids(module),
-            AnalyzeTiles(module)
+            Task.Run(() => AnalyzeItems(module)),
+            Task.Run(() => AnalyzeRecipes(module)),
+            Task.Run(() => AnalyzeLiquids(module)),
+            Task.Run(() => AnalyzeTiles(module))
         );
     }
 
@@ -211,7 +210,7 @@ public class Program
         if (field.FieldType.FullName.StartsWith("System.Collections.Generic.List`1"))
             return ParseList(instructions);
 
-        Console.WriteLine($"[WARNING] No parser for '{field.Name}' ({field.FieldType.FullName})");
+        Console.WriteLine($"[WARNING] No parser for '{field.DeclaringType.Name}.{field.Name}' ({field.FieldType.FullName})");
         foreach (var inst in instructions) Console.WriteLine($"  {inst}");
         return null;
     }
