@@ -33,10 +33,10 @@ public class Program
         }
 
         await Task.WhenAll(
-            Task.Run(() => AnalyzeItems(module)),
-            Task.Run(() => AnalyzeRecipes(module)),
-            Task.Run(() => AnalyzeLiquids(module)),
-            Task.Run(() => AnalyzeTiles(module))
+            Task.Run(() => AnalyzeItems(module))
+        // Task.Run(() => AnalyzeRecipes(module)),
+        // Task.Run(() => AnalyzeLiquids(module)),
+        // Task.Run(() => AnalyzeTiles(module))
         );
     }
 
@@ -198,13 +198,69 @@ public class Program
                     return result;
                 }
 
-                // TODO: Basic Delegate Analysis for ItemInfo/Use
+            // TODO: Basic Delegate Analysis for ItemInfo/Use
 
-                // TODO: Basic Delegate Analysis for ItemInfo/UseLimb
+            // TODO: Basic Delegate Analysis for ItemInfo/UseLimb
 
-                // TODO: Basic Delegate Analysis for LiquidType/OnDrink
+            // TODO: Basic Delegate Analysis for LiquidType/OnDrink
 
-                // TODO: Basic Delegate Analysis for LiquidType/OnHealthUse
+            // TODO: Basic Delegate Analysis for LiquidType/OnHealthUse
+
+            case "ItemInfo/Use":
+                {
+                    var pointerToDelegate = instructions.First(p => p.OpCode.Code == Code.Ldftn);
+                    if (pointerToDelegate is null)
+                        return null;
+
+                    var methodRef = (MethodReference)pointerToDelegate.Operand;
+                    var methodDef = methodRef.Resolve();
+
+                    // TODO: Analysis!
+
+                    break;
+                }
+
+            case "ItemInfo/UseLimb":
+                {
+                    var pointerToDelegate = instructions.First(p => p.OpCode.Code == Code.Ldftn);
+                    if (pointerToDelegate is null)
+                        return null;
+
+                    var methodRef = (MethodReference)pointerToDelegate.Operand;
+                    var methodDef = methodRef.Resolve();
+
+                    // TODO: Analysis!
+
+                    break;
+                }
+
+            case "LiquidType/OnDrink":
+                {
+                    var pointerToDelegate = instructions.First(p => p.OpCode.Code == Code.Ldftn);
+                    if (pointerToDelegate is null)
+                        return null;
+
+                    var methodRef = (MethodReference)pointerToDelegate.Operand;
+                    var methodDef = methodRef.Resolve();
+
+                    // TODO: Analysis!
+
+                    break;
+                }
+
+            case "LiquidType/OnHealthUse":
+                {
+                    var pointerToDelegate = instructions.First(p => p.OpCode.Code == Code.Ldftn);
+                    if (pointerToDelegate is null)
+                        return null;
+
+                    var methodRef = (MethodReference)pointerToDelegate.Operand;
+                    var methodDef = methodRef.Resolve();
+
+                    // TODO: Analysis!
+
+                    break;
+                }
         }
 
         if (field.FieldType.FullName.StartsWith("System.Collections.Generic.List`1"))
