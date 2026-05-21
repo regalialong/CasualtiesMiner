@@ -1,6 +1,7 @@
-﻿using Mono.Cecil;
+﻿using System.Text.Json;
 using Mono.Cecil.Cil;
-using Mono.Cecil.Rocks;
+using Mono.Cecil;
+
 
 public class Program
 {
@@ -45,31 +46,69 @@ public class Program
         return input;
     }
 
-    public static object quickAndDirtyOperandParser(Instruction instruction)
+    public static object ParseOperand(FieldDefinition field, List<Instruction> instructions)
     {
-        switch (instruction.OpCode.Name)
+        if (field.FieldType.IsPrimitive)
         {
-            case "ldc.i4.0":
-                return 0;
-            case "ldc.i4.1":
-                return 1;
-            case "ldc.i4.2":
-                return 2;
-            case "ldc.i4.3":
-                return 3;
-            case "ldc.i4.4":
-                return 4;
-            case "ldc.i4.5":
-                return 5;
-            case "ldc.i4.6":
-                return 6;
-            case "ldc.i4.7":
-                return 7;
-            case "ldc.i4.8":
-                return 8;
-            default:
-                return instruction.Operand;
+            switch (field.FieldType.Name)
+            {
+                case "Boolean":
+                    return instructions[0].OpCode.Name == "ldc.i4.1";
+                case "Byte":
+                case "Int32":
+                    object value = instructions[0].OpCode.Name switch
+                    {
+                        "ldc.i4.0" => 0,
+                        "ldc.i4.1" => 1,
+                        "ldc.i4.2" => 2,
+                        "ldc.i4.3" => 3,
+                        "ldc.i4.4" => 4,
+                        "ldc.i4.5" => 5,
+                        "ldc.i4.6" => 6,
+                        "ldc.i4.7" => 7,
+                        "ldc.i4.8" => 8,
+                        "ldc.i4.m1" => -1,
+                        _ => instructions[0].Operand ?? instructions[0].OpCode.Name
+                    };
+
+                    return field.FieldType.Name == "Byte" ? Convert.ToByte(value) : value;
+                case "Single":
+                    return instructions[0].Operand;
+                default:
+                    Console.WriteLine($"Unhandled FieldType: {field.FieldType.Name}");
+                    return instructions[0].Operand ?? instructions[0].OpCode.Name;
+            }
         }
+
+        // Console.WriteLine(field.FieldType.Name);
+
+        switch (field.FieldType.Name)
+        {
+            case "String":
+                return instructions[0].Operand ?? instructions[0].OpCode.Name;
+            case "Recognition":
+                return instructions[0].OpCode.Name switch
+                {
+                    "ldc.i4.0" => 0,
+                    "ldc.i4.1" => 1,
+                    "ldc.i4.2" => 2,
+                    "ldc.i4.3" => 3,
+                    "ldc.i4.4" => 4,
+                    "ldc.i4.5" => 5,
+                    "ldc.i4.6" => 6,
+                    "ldc.i4.7" => 7,
+                    "ldc.i4.8" => 8,
+                    "ldc.i4.m1" => -1,
+                    _ => instructions[0].Operand ?? instructions[0].OpCode.Name
+                };
+        }
+
+        foreach (var inst in instructions)
+        {
+            Console.WriteLine(inst);
+        }
+
+        return null;
     }
 
 
@@ -77,7 +116,7 @@ public class Program
     {
         Console.WriteLine("Analyzing Items...");
 
-        var itemList = new List<string>();
+        var itemList = new List<Dictionary<string, object>>();
 
         var itemType = module.Types.First(t => t.FullName == "Item");
         var itemInfoType = module.Types.First(t => t.FullName == "ItemInfo");
@@ -117,7 +156,6 @@ public class Program
                     continue;
 
                 var itemName = (string)itemNameInstruction.Operand;
-                itemList.Add(itemName);
 
                 var createItemInfoObjInstruction = instructions[IR(ref i)];
                 if (createItemInfoObjInstruction.OpCode.Name != "newobj")
@@ -126,7 +164,8 @@ public class Program
                 if (createItemInfoObjInstruction.Operand != itemInfoType.Methods.First((p) => p.IsConstructor))
                     continue;
 
-                Console.WriteLine($"Item: {itemName}");
+                var itemInfo = new Dictionary<string, object>();
+                itemInfo["name"] = itemName;
 
                 while (true)
                 {
@@ -171,29 +210,21 @@ public class Program
                     if (suspectField.Operand is not null && suspectField.Operand is FieldDefinition)
                     {
                         var x = (FieldDefinition)suspectField.Operand;
-                        Console.Write($"{x.DeclaringType.Name}.{x.Name}: ");
-                        if (valueOpcodes.Count == 1)
-                        {
-                            Console.WriteLine(quickAndDirtyOperandParser(valueOpcodes[0]));
-                        }
-                        else
-                        {
-                            Console.WriteLine("Basically a list of Opcodes, so we need to write a parser for it :sob:");
-                            // Console.WriteLine();
-                            // foreach (var inst in valueOpcodes)
-                            // {
-                            //     Console.WriteLine(inst);
-                            // }
-                        }
+                        itemInfo[x.Name] = ParseOperand(x, valueOpcodes);
                     }
                 }
 
+                itemList.Add(itemInfo);
                 haveItem = true;
             }
         }
 
-        Console.WriteLine($"Amount of item {itemList.Count}");
-        foreach(var item in itemList)
-            Console.WriteLine(item);
+        // Console.WriteLine($"Amount of item {itemList.Count}");
+        // using (var file = File.OpenText("items.json"))
+        // {
+        //     file.
+        // }
+
+        File.WriteAllText("items.json", JsonSerializer.Serialize(itemList));
     }
 }
