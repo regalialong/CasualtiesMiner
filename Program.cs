@@ -2,6 +2,7 @@
 using System.Text.Json;
 using Mono.Cecil.Cil;
 using Mono.Cecil;
+using Mono.Cecil.Rocks;
 
 public class Program
 {
@@ -35,24 +36,25 @@ public class Program
         await Task.WhenAll(
             AnalyzeItems(module),
             AnalyzeRecipes(module),
-            AnalyzeLiquids(module)
+            AnalyzeLiquids(module),
+            AnalyzeTiles(module)
         );
     }
 
     private static int ParseInt(Instruction inst)
     {
-        return inst.OpCode.Name switch
+        return inst.OpCode.Code switch
         {
-            "ldc.i4.0" => 0,
-            "ldc.i4.1" => 1,
-            "ldc.i4.2" => 2,
-            "ldc.i4.3" => 3,
-            "ldc.i4.4" => 4,
-            "ldc.i4.5" => 5,
-            "ldc.i4.6" => 6,
-            "ldc.i4.7" => 7,
-            "ldc.i4.8" => 8,
-            "ldc.i4.m1" => -1,
+            Code.Ldc_I4_0 => 0,
+            Code.Ldc_I4_1 => 1,
+            Code.Ldc_I4_2 => 2,
+            Code.Ldc_I4_3 => 3,
+            Code.Ldc_I4_4 => 4,
+            Code.Ldc_I4_5 => 5,
+            Code.Ldc_I4_6 => 6,
+            Code.Ldc_I4_7 => 7,
+            Code.Ldc_I4_8 => 8,
+            Code.Ldc_I4_M1 => -1,
             _ => inst.Operand is int v ? v : Convert.ToInt32(inst.Operand)
         };
     }
@@ -64,11 +66,11 @@ public class Program
 
         for (var i = 0; i < instructions.Count; i++)
         {
-            if (instructions[i].OpCode.Name != "dup") continue;
+            if (instructions[i].OpCode.Code != Code.Dup) continue;
             i++;
 
             var valueOpcodes = new List<Instruction>();
-            while (i < instructions.Count && instructions[i].OpCode.Name != "stfld")
+            while (i < instructions.Count && instructions[i].OpCode.Code != Code.Stfld)
                 valueOpcodes.Add(instructions[i++]);
 
             if (i < instructions.Count && instructions[i].Operand is FieldDefinition field)
@@ -91,17 +93,17 @@ public class Program
         {
             var inst = instructions[i];
 
-            if (inst.OpCode.Name == "callvirt" && isStopCall(inst.Operand?.ToString() ?? ""))
+            if (inst.OpCode.Code == Code.Callvirt && isStopCall(inst.Operand?.ToString() ?? ""))
                 return i;
 
-            if (inst.OpCode.Name != "dup") continue;
+            if (inst.OpCode.Code != Code.Dup) continue;
 
             var valueOpcodes = new List<Instruction>();
 
             while (++i < instructions.Count)
             {
                 var next = instructions[i];
-                if (next.OpCode.Name == "stfld"
+                if (next.OpCode.Code == Code.Stfld
                     && next.Operand is FieldDefinition fd
                     && fd.DeclaringType.Name == declaringTypeName)
                 {
@@ -123,7 +125,7 @@ public class Program
         if (field.FieldType.IsPrimitive)
             return field.FieldType.Name switch
             {
-                "Boolean" => instructions[0].OpCode.Name == "ldc.i4.1",
+                "Boolean" => instructions[0].OpCode.Code == Code.Ldc_I4_1,
                 "Single" => instructions[0].Operand,
                 "Byte" => Convert.ToByte(ParseInt(instructions[0])),
                 "Int32" => ParseInt(instructions[0]),
@@ -134,6 +136,7 @@ public class Program
         {
             "String" => instructions[0].Operand ?? instructions[0].OpCode.Name,
             "Recognition" => ParseInt(instructions[0]),
+            "SleepQuality" => ParseInt(instructions[0]),
             _ => ParseComplexValue(field, instructions)
         };
     }
@@ -176,24 +179,33 @@ public class Program
                 {
                     var result = new Dictionary<string, object?>();
 
-                    // TODO: If the last call is `call valuetype [UnityEngine.CoreModule]UnityEngine.Color [UnityEngine.CoreModule]UnityEngine.Color32::op_Implicit(valuetype [UnityEngine.CoreModule]UnityEngine.Color32)`
-                    if (instructions.Count == 4)
+                    switch (instructions.Count)
                     {
-                        result["r"] = ParseInt(instructions[0]) * 255;
-                        result["g"] = ParseInt(instructions[1]) * 255;
-                        result["b"] = ParseInt(instructions[2]) * 255;
-                        result["a"] = 255;
-                    }
-                    else if (instructions.Count == 6)
-                    {
-                        result["r"] = ParseInt(instructions[0]);
-                        result["g"] = ParseInt(instructions[1]);
-                        result["b"] = ParseInt(instructions[2]);
-                        result["a"] = ParseInt(instructions[3]);
+                        // TODO: If the last call is `call valuetype [UnityEngine.CoreModule]UnityEngine.Color [UnityEngine.CoreModule]UnityEngine.Color32::op_Implicit(valuetype [UnityEngine.CoreModule]UnityEngine.Color32)`
+                        case 4:
+                            result["r"] = ParseInt(instructions[0]) * 255;
+                            result["g"] = ParseInt(instructions[1]) * 255;
+                            result["b"] = ParseInt(instructions[2]) * 255;
+                            result["a"] = 255;
+                            break;
+                        case 6:
+                            result["r"] = ParseInt(instructions[0]);
+                            result["g"] = ParseInt(instructions[1]);
+                            result["b"] = ParseInt(instructions[2]);
+                            result["a"] = ParseInt(instructions[3]);
+                            break;
                     }
 
                     return result;
                 }
+
+                // TODO: Basic Delegate Analysis for ItemInfo/Use
+
+                // TODO: Basic Delegate Analysis for ItemInfo/UseLimb
+
+                // TODO: Basic Delegate Analysis for LiquidType/OnDrink
+
+                // TODO: Basic Delegate Analysis for LiquidType/OnHealthUse
         }
 
         if (field.FieldType.FullName.StartsWith("System.Collections.Generic.List`1"))
@@ -211,10 +223,10 @@ public class Program
         var buffer = new List<Instruction>();
 
         foreach (var inst in instructions)
-            switch (inst.OpCode.Name)
+            switch (inst.OpCode.Code)
             {
-                case "newobj":
-                case "call":
+                case Code.Newobj:
+                case Code.Call:
                     if (inst.Operand is MethodReference ctor
                         && !ctor.DeclaringType.FullName.StartsWith("System.Collections.Generic.List`1"))
                     {
@@ -232,26 +244,24 @@ public class Program
                     }
                     break;
 
-                case "dup":
+                case Code.Dup:
                     buffer.Clear();
                     break;
 
-                case "stfld":
+                case Code.Stfld:
                     if (current != null && inst.Operand is FieldDefinition field)
                     {
                         current[field.Name] = ParseFieldValue(field, buffer);
-                        buffer = new List<Instruction>();
+                        buffer = [];
                     }
-
                     break;
 
-                case "callvirt":
+                case Code.Callvirt:
                     if (current != null && inst.Operand?.ToString()?.Contains("::Add(") == true)
                     {
                         items.Add(current);
                         current = null;
                     }
-
                     break;
 
                 default:
@@ -287,9 +297,9 @@ public class Program
 
         for (var i = 0; i < instructions.Count - 2; i++)
         {
-            if (instructions[i].OpCode.Name != "ldsfld" || instructions[i].Operand != globalField) continue;
-            if (instructions[i + 1].OpCode.Name != "ldstr") continue;
-            if (instructions[i + 2].OpCode.Name != "newobj" || instructions[i + 2].Operand != itemInfoCtor) continue;
+            if (instructions[i].OpCode.Code != Code.Ldsfld || instructions[i].Operand != globalField) continue;
+            if (instructions[i + 1].OpCode.Code != Code.Ldstr) continue;
+            if (instructions[i + 2].OpCode.Code != Code.Newobj || instructions[i + 2].Operand != itemInfoCtor) continue;
 
             var itemName = (string)instructions[i + 1].Operand;
             var itemInfo = new Dictionary<string, object?> { ["name"] = itemName };
@@ -323,8 +333,8 @@ public class Program
 
         for (var i = 0; i < instructions.Count - 1; i++)
         {
-            if (instructions[i].OpCode.Name != "ldsfld" || instructions[i].Operand != globalField) continue;
-            if (instructions[i + 1].OpCode.Name != "newobj" || instructions[i + 1].Operand != recipeCtor) continue;
+            if (instructions[i].OpCode.Code != Code.Ldsfld || instructions[i].Operand != globalField) continue;
+            if (instructions[i + 1].OpCode.Code != Code.Newobj || instructions[i + 1].Operand != recipeCtor) continue;
 
             var recipeInfo = new Dictionary<string, object?>();
 
@@ -355,8 +365,8 @@ public class Program
 
         for (var i = 0; i < instructions.Count - 1; i++)
         {
-            if (instructions[i].OpCode.Name != "ldstr") continue;
-            if (instructions[i + 1].OpCode.Name != "newobj" || instructions[i + 1].Operand != liquidCtor) continue;
+            if (instructions[i].OpCode.Code != Code.Ldstr) continue;
+            if (instructions[i + 1].OpCode.Code != Code.Newobj || instructions[i + 1].Operand != liquidCtor) continue;
 
             var key = (string)instructions[i].Operand;
             var entry = new Dictionary<string, object?> { ["id"] = key };
@@ -375,6 +385,58 @@ public class Program
     // Okay so from what I know, All layer extends from `LayerModifier`?? and there's absolutely no fucking way we can parse it without inspecting
     // Their method body (Initialize, Disable)
 
-    // TODO: Add block info
-    // Take a look at the `WorldGeneration.GetBlockInfo`, it's a big Switch case, so should be easy? idrk
+    public static Task AnalyzeTiles(ModuleDefinition module)
+    {
+        Console.WriteLine("Analyzing Tiles...");
+        var tileList = new List<Dictionary<string, object?>>();
+
+        var worldGenType = module.Types.FirstOrDefault(t => t.FullName == "WorldGeneration");
+        var blockInfoType = module.Types.FirstOrDefault(t => t.FullName == "BlockInfo");
+        if (worldGenType is null || blockInfoType is null) return Task.CompletedTask;
+
+        var setupMethod = worldGenType.Methods.FirstOrDefault(m => m.Name == "GetBlockInfo");
+        if (setupMethod is null) return Task.CompletedTask;
+
+        var instructions = setupMethod.Body.Instructions;
+
+        var switchInst = instructions.FirstOrDefault(i => i.OpCode.Code == Code.Switch);
+        if (switchInst == null) return Task.CompletedTask;
+
+        var switchTargets = (Instruction[])switchInst.Operand;
+
+        for (var blockId = 0; blockId < switchTargets.Length; blockId++)
+        {
+            var targetInst = switchTargets[blockId];
+            if (targetInst.OpCode.Code != Code.Newobj) continue;
+
+            var entry = new Dictionary<string, object?> { ["id"] = blockId };
+
+            var index = instructions.IndexOf(targetInst);
+            while (++index < instructions.Count)
+            {
+                var inst = instructions[index];
+
+                if (inst.OpCode.Code == Code.Ret) break;
+                if (inst.OpCode.Code != Code.Dup) continue;
+
+                var valueOpcodes = new List<Instruction>();
+                while (++index < instructions.Count)
+                {
+                    var next = instructions[index];
+
+                    if (next.OpCode.Code == Code.Stfld && next.Operand is FieldDefinition fd)
+                    {
+                        entry[fd.Name] = ParseFieldValue(fd, valueOpcodes);
+                        break;
+                    }
+                    valueOpcodes.Add(next);
+                }
+            }
+
+            tileList.Add(entry);
+        }
+
+        File.WriteAllText("tiles.json", JsonSerializer.Serialize(tileList));
+        return Task.CompletedTask;
+    }
 }

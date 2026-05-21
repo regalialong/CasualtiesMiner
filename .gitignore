@@ -8,4 +8,5 @@ liquids.json
 recipes.json
 output.txt
 items.json
+tiles.json
 *.lscache
