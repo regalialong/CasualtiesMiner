@@ -1,6 +1,6 @@
 namespace CasualtiesMiner.Shared.Models;
 
-public sealed partial class Color : IEquatable<Color>
+public sealed class Color : IEquatable<Color>
 {
     public byte a;
     public byte b;
@@ -40,7 +40,7 @@ public sealed partial class Color : IEquatable<Color>
     }
 }
 
-public sealed partial class LiquidInfo : IEquatable<LiquidInfo>
+public sealed class LiquidInfo : IEquatable<LiquidInfo>
 {
     public required Color color;
     public bool healthUsable;
