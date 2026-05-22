@@ -12,10 +12,10 @@ The data dumper, analyze the Assembly-CSharp's IL code to give us the game's dat
 
 Windows
 ```
-CasualtiesDumper.exe path\to\Assembly-CSharp.dll
+.\CasualtiesDumper.exe path\to\Assembly-CSharp.dll
 ```
 
 macOS / Linux
 ```
-CasualtiesDumper path/to/Assembly-CSharp.dll
+./CasualtiesDumper path/to/Assembly-CSharp.dll
 ```
