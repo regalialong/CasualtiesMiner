@@ -1,8 +1,8 @@
-﻿using System.Text.Json;
+﻿using System.Text.Json.Serialization.Metadata;
 using System.Text.Json.Serialization;
-using System.Text.Json.Serialization.Metadata;
+using System.Text.Json;
 
-namespace CasualtiesUnknownDumper;
+namespace CasualtiesDumper;
 
 internal static class JsonOptions
 {
