@@ -1,6 +1,9 @@
-﻿using Mono.Cecil;
+﻿using ICSharpCode.Decompiler;
+using ICSharpCode.Decompiler.CSharp;
+using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Collections.Generic;
+using System.Reflection.Metadata.Ecma335;
 using System.Text.Json;
 
 namespace CasualtiesUnknownDumper;
@@ -34,15 +37,20 @@ public class Program
             return;
         }
 
+        var decompilerSettings = new DecompilerSettings
+        {
+            ThrowOnAssemblyResolveErrors = false
+        };
+
         await Task.WhenAll(
-            Task.Run(() => AnalyzeItems(module))
-        //Task.Run(() => AnalyzeRecipes(module)),
-        //Task.Run(() => AnalyzeLiquids(module)),
-        //Task.Run(() => AnalyzeTiles(module))
+            Task.Run(() => AnalyzeItems(new CSharpDecompiler(fileName, decompilerSettings), module)),
+            Task.Run(() => AnalyzeRecipes(new CSharpDecompiler(fileName, decompilerSettings), module)),
+            Task.Run(() => AnalyzeLiquids(new CSharpDecompiler(fileName, decompilerSettings), module)),
+            Task.Run(() => AnalyzeTiles(new CSharpDecompiler(fileName, decompilerSettings), module))
         );
     }
 
-    public static async Task AnalyzeItems(ModuleDefinition module)
+    public static async Task AnalyzeItems(CSharpDecompiler decompiler, ModuleDefinition module)
     {
         Console.WriteLine("Analyzing Items...");
         var itemList = new List<Dictionary<string, object?>>();
@@ -82,7 +90,7 @@ public class Program
             var itemName = (string)instructions[i + 1].Operand;
             var itemInfo = new Dictionary<string, object?> { ["name"] = itemName };
 
-            i = ParseObjectFields(instructions, i + 2, "ItemInfo", itemInfo, op =>
+            i = ParseObjectFields(decompiler, instructions, i + 2, "ItemInfo", itemInfo, op =>
                 op is "System.Void System.Collections.Generic.Dictionary`2<System.String,ItemInfo>::Add(!0,!1)"
                     or "System.Collections.Generic.Dictionary`2/Enumerator<!0,!1> System.Collections.Generic.Dictionary`2<System.String,ItemInfo>::GetEnumerator()");
 
@@ -92,7 +100,7 @@ public class Program
         await File.WriteAllTextAsync("items.json", JsonSerializer.Serialize(itemList, JsonOptions.CamelCaseOptions));
     }
 
-    public static async Task AnalyzeRecipes(ModuleDefinition module)
+    public static async Task AnalyzeRecipes(CSharpDecompiler decompiler, ModuleDefinition module)
     {
         Console.WriteLine("Analyzing Recipes...");
         var recipeList = new List<Dictionary<string, object?>>();
@@ -129,7 +137,7 @@ public class Program
 
             var recipeInfo = new Dictionary<string, object?>();
 
-            i = ParseObjectFields(instructions, i + 1, "Recipe", recipeInfo,
+            i = ParseObjectFields(decompiler, instructions, i + 1, "Recipe", recipeInfo,
                 op => op == "System.Void System.Collections.Generic.List`1<Recipe>::Add(!0)");
 
             recipeList.Add(recipeInfo);
@@ -138,7 +146,7 @@ public class Program
         await File.WriteAllTextAsync("recipes.json", JsonSerializer.Serialize(recipeList, JsonOptions.CamelCaseOptions));
     }
 
-    public static async Task AnalyzeLiquids(ModuleDefinition module)
+    public static async Task AnalyzeLiquids(CSharpDecompiler decompiler, ModuleDefinition module)
     {
         Console.WriteLine("Analyzing Liquids...");
         var liquidList = new List<Dictionary<string, object?>>();
@@ -167,7 +175,7 @@ public class Program
             var key = (string)instructions[i].Operand;
             var entry = new Dictionary<string, object?> { ["id"] = key };
 
-            i = ParseObjectFields(instructions, i + 1, "LiquidType", entry,
+            i = ParseObjectFields(decompiler, instructions, i + 1, "LiquidType", entry,
                 op => op.Contains("::set_Item("));
 
             liquidList.Add(entry);
@@ -180,7 +188,7 @@ public class Program
     // Okay so from what I know, All layer extends from `LayerModifier`?? and there's absolutely no fucking way we can parse it without inspecting
     // Their method body (Initialize, Disable)
 
-    public static async Task AnalyzeTiles(ModuleDefinition module)
+    public static async Task AnalyzeTiles(CSharpDecompiler decompiler, ModuleDefinition module)
     {
         Console.WriteLine("Analyzing Tiles...");
         var tileList = new List<Dictionary<string, object?>>();
@@ -232,7 +240,7 @@ public class Program
                 {
                     if (innerInstruction.OpCode.Code == Code.Stfld && innerInstruction.Operand is FieldDefinition fd)
                     {
-                        entry[fd.Name] = ParseFieldValue(fd, valueOpcodes);
+                        entry[fd.Name] = ParseFieldValue(decompiler, fd, valueOpcodes);
                         break;
                     }
 
@@ -247,6 +255,7 @@ public class Program
     }
 
     private static int ParseObjectFields(
+        CSharpDecompiler decompiler,
         Collection<Instruction> instructions,
         int startIndex,
         string declaringTypeName,
@@ -273,7 +282,7 @@ public class Program
                     && next.Operand is FieldDefinition fd
                     && fd.DeclaringType.Name == declaringTypeName)
                 {
-                    target[fd.Name] = ParseFieldValue(fd, valueOpcodes);
+                    target[fd.Name] = ParseFieldValue(decompiler, fd, valueOpcodes);
                     break;
                 }
 
@@ -284,7 +293,7 @@ public class Program
         return i;
     }
 
-    private static object? ParseFieldValue(FieldDefinition field, List<Instruction> instructions)
+    private static object? ParseFieldValue(CSharpDecompiler decompiler, FieldDefinition field, List<Instruction> instructions)
     {
         if (instructions.Count == 0) return null;
 
@@ -295,7 +304,7 @@ public class Program
                 "Single" => Convert.ToSingle(instructions[0].Operand),
                 "Byte" => Convert.ToByte(ParseInt(instructions[0])),
                 "Int32" => ParseInt(instructions[0]),
-                _ => WarnUnhandled(field, instructions[0])
+                _ => WarnUnhandled(decompiler, field, instructions[0])
             };
 
         return field.FieldType.Name switch
@@ -303,19 +312,19 @@ public class Program
             "String" => instructions[0].Operand ?? instructions[0].OpCode.Name,
             "Recognition" => ParseInt(instructions[0]),
             "SleepQuality" => ParseInt(instructions[0]),
-            _ => ParseComplexValue(field, instructions)
+            _ => ParseComplexValue(decompiler, field, instructions)
         };
     }
 
-    private static object? ParseComplexValue(FieldDefinition field, List<Instruction> instructions)
+    private static object? ParseComplexValue(CSharpDecompiler decompiler, FieldDefinition field, List<Instruction> instructions)
     {
         switch (field.FieldType.FullName)
         {
             case "RecipeResult":
                 {
                     var result = new Dictionary<string, object?>();
-                    foreach (var (f, vals) in ExtractFields(instructions))
-                        result[f.Name] = ParseFieldValue(f, vals);
+                    foreach (var (f, vals) in ExtractFields(decompiler, instructions))
+                        result[f.Name] = ParseFieldValue(decompiler, f, vals);
                     return result;
                 }
 
@@ -377,60 +386,62 @@ public class Program
                 {
                     var pointerToDelegate = instructions.First(p => p.OpCode.Code == Code.Ldftn);
                     if (pointerToDelegate is null)
+                    {
                         return null;
+                    }
 
                     var methodRef = (MethodReference)pointerToDelegate.Operand;
                     var methodDef = methodRef.Resolve();
 
-                    // TODO: Analysis!
-
-                    break;
+                    return decompiler.DecompileAsString(MetadataTokens.EntityHandle(methodDef.MetadataToken.ToInt32()))
+                        .Replace("\r\n", "\n").Replace("\t", "    ").Split("\n");
                 }
-
             case "ItemInfo/UseLimb":
                 {
                     var pointerToDelegate = instructions.First(p => p.OpCode.Code == Code.Ldftn);
                     if (pointerToDelegate is null)
+                    {
                         return null;
+                    }
 
                     var methodRef = (MethodReference)pointerToDelegate.Operand;
                     var methodDef = methodRef.Resolve();
 
-                    // TODO: Analysis!
-
-                    break;
+                    return decompiler.DecompileAsString(MetadataTokens.EntityHandle(methodDef.MetadataToken.ToInt32()))
+                        .Replace("\r\n", "\n").Replace("\t", "    ").Split("\n");
                 }
-
             case "LiquidType/OnDrink":
                 {
                     var pointerToDelegate = instructions.First(p => p.OpCode.Code == Code.Ldftn);
                     if (pointerToDelegate is null)
+                    {
                         return null;
+                    }
 
                     var methodRef = (MethodReference)pointerToDelegate.Operand;
                     var methodDef = methodRef.Resolve();
 
-                    // TODO: Analysis!
-
-                    break;
+                    return decompiler.DecompileAsString(MetadataTokens.EntityHandle(methodDef.MetadataToken.ToInt32()))
+                        .Replace("\r\n", "\n").Replace("\t", "    ").Split("\n");
                 }
-
             case "LiquidType/OnHealthUse":
                 {
                     var pointerToDelegate = instructions.First(p => p.OpCode.Code == Code.Ldftn);
                     if (pointerToDelegate is null)
+                    {
                         return null;
+                    }
 
                     var methodRef = (MethodReference)pointerToDelegate.Operand;
                     var methodDef = methodRef.Resolve();
 
-                    // TODO: Analysis!
-                    break;
+                    return decompiler.DecompileAsString(MetadataTokens.EntityHandle(methodDef.MetadataToken.ToInt32()))
+                        .Replace("\r\n", "\n").Replace("\t", "    ").Split("\n");
                 }
         }
 
         if (field.FieldType.FullName.StartsWith("System.Collections.Generic.List`1"))
-            return ParseList(instructions);
+            return ParseList(decompiler, instructions);
 
         Console.WriteLine($"[WARNING] No parser for '{field.DeclaringType.Name}.{field.Name}' ({field.FieldType.FullName})");
 
@@ -440,11 +451,11 @@ public class Program
         return null;
     }
 
-    private static List<Dictionary<string, object?>> ParseList(List<Instruction> instructions)
+    private static List<Dictionary<string, object?>> ParseList(CSharpDecompiler decompiler, List<Instruction> instructions)
     {
         var items = new List<Dictionary<string, object?>>();
-        var current = new Dictionary<string, object?>();
         var buffer = new List<Instruction>();
+        Dictionary<string, object?>? current = default;
 
         foreach (var inst in instructions)
         {
@@ -457,7 +468,7 @@ public class Program
                     {
                         if (current is null)
                         {
-                            current = new();
+                            current = [];
                             for (var p = 0; p < ctor.Parameters.Count && p < buffer.Count; p++)
                                 current[ctor.Parameters[p].Name] = buffer[p].Operand ?? buffer[p].OpCode.Name;
 
@@ -481,7 +492,7 @@ public class Program
                 case Code.Stfld:
                     if (current != null && inst.Operand is FieldDefinition field)
                     {
-                        current[field.Name] = ParseFieldValue(field, buffer);
+                        current[field.Name] = ParseFieldValue(decompiler, field, buffer);
                         buffer = [];
                     }
                     break;
@@ -499,13 +510,13 @@ public class Program
         return items;
     }
 
-    private static object WarnUnhandled(FieldDefinition field, Instruction inst)
+    private static object WarnUnhandled(CSharpDecompiler decompiler, FieldDefinition field, Instruction inst)
     {
         Console.WriteLine($"[WARNING] Unhandled primitive type: {field.FieldType.Name}");
         return inst.Operand ?? inst.OpCode.Name;
     }
 
-    public static Dictionary<FieldDefinition, List<Instruction>> ExtractFields(List<Instruction> instructions)
+    public static Dictionary<FieldDefinition, List<Instruction>> ExtractFields(CSharpDecompiler decompiler, List<Instruction> instructions)
     {
         var fields = new Dictionary<FieldDefinition, List<Instruction>>();
 
