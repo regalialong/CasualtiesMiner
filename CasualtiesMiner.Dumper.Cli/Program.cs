@@ -43,24 +43,19 @@ public class Program
             UsingDeclarations = false
         };
 
-        var jsonSerializerOptions = new JsonSerializerOptions
-        {
-            IncludeFields = true
-        };
-
         await Task.WhenAll(
             Task.Run(() => File.WriteAllText("items.json",
                 JsonSerializer.Serialize(dumper.DumpItems(new CSharpDecompiler(fileName, decompilerSettings)),
-                    jsonSerializerOptions))),
+                    DumperJsonOptions.CamelCaseOptions))),
             Task.Run(() => File.WriteAllText("recipes.json",
                 JsonSerializer.Serialize(dumper.DumpRecipes(new CSharpDecompiler(fileName, decompilerSettings)),
-                    jsonSerializerOptions))),
+                    DumperJsonOptions.CamelCaseOptions))),
             Task.Run(() => File.WriteAllText("liquids.json",
                 JsonSerializer.Serialize(dumper.DumpLiquids(new CSharpDecompiler(fileName, decompilerSettings)),
-                    jsonSerializerOptions))),
+                    DumperJsonOptions.CamelCaseOptions))),
             Task.Run(() => File.WriteAllText("tiles.json",
                 JsonSerializer.Serialize(dumper.DumpTiles(new CSharpDecompiler(fileName, decompilerSettings)),
-                    jsonSerializerOptions)))
+                    DumperJsonOptions.CamelCaseOptions)))
         );
     }
 }

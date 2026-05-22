@@ -1,6 +1,6 @@
 namespace CasualtiesMiner.Shared.Models;
 
-public sealed class CraftingQuality : IEquatable<CraftingQuality>
+public sealed partial class CraftingQuality : IEquatable<CraftingQuality>
 {
     public required float amount;
     public required string id;
@@ -35,7 +35,7 @@ public sealed class CraftingQuality : IEquatable<CraftingQuality>
     }
 }
 
-public sealed class ItemInfo : IEquatable<ItemInfo>
+public sealed partial class ItemInfo : IEquatable<ItemInfo>
 {
     public required bool autoAttack;
     public required string category;
