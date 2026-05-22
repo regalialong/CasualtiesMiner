@@ -1,9 +1,9 @@
 .idea/
+libs/
 bin/
 obj/
 
 # BIG NONO
-Assembly-CSharp.dll
 liquids.json
 recipes.json
 output.txt
