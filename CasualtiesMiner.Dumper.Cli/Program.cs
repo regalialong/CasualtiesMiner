@@ -1,6 +1,6 @@
-﻿using ICSharpCode.Decompiler.CSharp;
+﻿using System.Text.Json;
 using ICSharpCode.Decompiler;
-using System.Text.Json;
+using ICSharpCode.Decompiler.CSharp;
 using Mono.Cecil;
 
 namespace CasualtiesMiner.Dumper.Cli;

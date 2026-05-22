@@ -3,7 +3,7 @@
         <OutputType>Exe</OutputType>
     </PropertyGroup>
 
-    <Import Project="../CasualtiesMiner.Common.props" />
+    <Import Project="../CasualtiesMiner.Common.props"/>
 
     <PropertyGroup Condition="'$(Configuration)' == 'Release'">
         <PublishAot>true</PublishAot>
@@ -11,6 +11,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\CasualtiesMiner.Dumper\CasualtiesMiner.Dumper.csproj" />
+        <ProjectReference Include="..\CasualtiesMiner.Dumper\CasualtiesMiner.Dumper.csproj"/>
     </ItemGroup>
 </Project>
