@@ -488,6 +488,13 @@ $RECYCLE.BIN/
 *.sln.iml
 
 ##
+## Visual Studio
+##
+libs/
+bin/
+obj/
+
+##
 ## Visual Studio Code
 ##
 .vscode/*

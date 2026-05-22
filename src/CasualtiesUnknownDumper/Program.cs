@@ -14,9 +14,9 @@ public class Program
     {
         var fileName = args.Length > 0 ? args[0] : "Assembly-CSharp.dll";
 
-        if (string.IsNullOrEmpty(fileName) || !File.Exists(fileName))
+        if (!File.Exists(fileName))
         {
-            Console.WriteLine("Can't find Assembly-CSharp.dll.");
+            Console.WriteLine($"Can't find {fileName}.");
 
             return;
         }
