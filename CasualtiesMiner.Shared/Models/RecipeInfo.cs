@@ -1,6 +1,6 @@
 namespace CasualtiesMiner.Shared.Models;
 
-public class RecipeItem : IEquatable<RecipeItem>
+public sealed class RecipeItem : IEquatable<RecipeItem>
 {
     public bool destroyItem = true;
     public required string ignoredId;
@@ -46,7 +46,7 @@ public class RecipeItem : IEquatable<RecipeItem>
     }
 }
 
-public class RecipeResult : IEquatable<RecipeResult>
+public sealed class RecipeResult : IEquatable<RecipeResult>
 {
     public int amount = 1;
     public bool dontDrainResultLiquid;
@@ -88,7 +88,7 @@ public class RecipeResult : IEquatable<RecipeResult>
     }
 }
 
-public class RecipeInfo : IEquatable<RecipeInfo>
+public sealed class RecipeInfo : IEquatable<RecipeInfo>
 {
     public int category;
     public bool hasMadeBefore;
