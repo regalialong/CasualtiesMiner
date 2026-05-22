@@ -74,6 +74,22 @@ internal sealed class ObjectJsonConverter : JsonConverter<object?>
             case string stringValue:
                 writer.WriteStringValue(stringValue);
                 break;
+            case string[] strings:
+                writer.WriteStartArray();
+                foreach (var entry in strings)
+                {
+                    writer.WriteStringValue(entry);
+                }
+                writer.WriteEndArray();
+                break;
+            case Array array:
+                writer.WriteStartArray();
+                foreach (var element in array)
+                {
+                    Write(writer, element, options);
+                }
+                writer.WriteEndArray();
+                break;
             case Dictionary<string, object?> dictionary:
                 writer.WriteStartObject();
                 foreach (var (key, entryValue) in dictionary)
@@ -106,4 +122,5 @@ internal sealed class ObjectJsonConverter : JsonConverter<object?>
 [JsonSerializable(typeof(float))]
 [JsonSerializable(typeof(double))]
 [JsonSerializable(typeof(string))]
+[JsonSerializable(typeof(string[]))]
 internal partial class JsonContext : JsonSerializerContext { }
