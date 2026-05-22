@@ -2,7 +2,7 @@
 using System.Text.Json.Serialization;
 using System.Text.Json;
 
-namespace CasualtiesDumper;
+namespace CasualtiesMiner.Dumper.Cli;
 
 internal static class JsonOptions
 {
@@ -12,21 +12,26 @@ internal static class JsonOptions
 
     public static readonly JsonSerializerOptions SnakeCaseLowerOptions = CreateOptions(JsonNamingPolicy.SnakeCaseLower);
 
-    private static JsonSerializerOptions CreateOptions(JsonNamingPolicy namingPolicy) => new()
+    private static JsonSerializerOptions CreateOptions(JsonNamingPolicy namingPolicy)
     {
-        AllowTrailingCommas = true,
-        TypeInfoResolver = JsonTypeInfoResolver.Combine(JsonContext.Default),
-        IncludeFields = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.Never,
-        PropertyNamingPolicy = namingPolicy,
-        Converters = { ObjectConverter },
-    };
+        return new JsonSerializerOptions
+        {
+            AllowTrailingCommas = true,
+            TypeInfoResolver = JsonTypeInfoResolver.Combine(JsonContext.Default),
+            IncludeFields = true,
+            DefaultIgnoreCondition = JsonIgnoreCondition.Never,
+            PropertyNamingPolicy = namingPolicy,
+            Converters = { ObjectConverter }
+        };
+    }
 }
 
 internal sealed class ObjectJsonConverter : JsonConverter<object?>
 {
-    public override object? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options) =>
+    public override object? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
         throw new NotSupportedException();
+    }
 
     public override void Write(Utf8JsonWriter writer, object? value, JsonSerializerOptions options)
     {
@@ -76,18 +81,12 @@ internal sealed class ObjectJsonConverter : JsonConverter<object?>
                 break;
             case string[] strings:
                 writer.WriteStartArray();
-                foreach (var entry in strings)
-                {
-                    writer.WriteStringValue(entry);
-                }
+                foreach (var entry in strings) writer.WriteStringValue(entry);
                 writer.WriteEndArray();
                 break;
             case Array array:
                 writer.WriteStartArray();
-                foreach (var element in array)
-                {
-                    Write(writer, element, options);
-                }
+                foreach (var element in array) Write(writer, element, options);
                 writer.WriteEndArray();
                 break;
             case Dictionary<string, object?> dictionary:
@@ -97,14 +96,12 @@ internal sealed class ObjectJsonConverter : JsonConverter<object?>
                     writer.WritePropertyName(key);
                     Write(writer, entryValue, options);
                 }
+
                 writer.WriteEndObject();
                 break;
             case List<Dictionary<string, object?>> list:
                 writer.WriteStartArray();
-                foreach (var item in list)
-                {
-                    Write(writer, item, options);
-                }
+                foreach (var item in list) Write(writer, item, options);
                 writer.WriteEndArray();
                 break;
             default:
@@ -123,4 +120,6 @@ internal sealed class ObjectJsonConverter : JsonConverter<object?>
 [JsonSerializable(typeof(double))]
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(string[]))]
-internal partial class JsonContext : JsonSerializerContext { }
+internal partial class JsonContext : JsonSerializerContext
+{
+}
