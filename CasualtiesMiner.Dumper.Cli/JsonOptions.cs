@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using CasualtiesMiner.Shared.Models;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 
@@ -19,6 +20,7 @@ internal static class JsonOptions
             AllowTrailingCommas = true,
             TypeInfoResolver = JsonTypeInfoResolver.Combine(JsonContext.Default),
             IncludeFields = true,
+            WriteIndented = true,
             DefaultIgnoreCondition = JsonIgnoreCondition.Never,
             PropertyNamingPolicy = namingPolicy,
             Converters = { ObjectConverter }
@@ -113,6 +115,11 @@ internal sealed class ObjectJsonConverter : JsonConverter<object?>
 [JsonSourceGenerationOptions(UseStringEnumConverter = true)]
 [JsonSerializable(typeof(List<Dictionary<string, object?>>))]
 [JsonSerializable(typeof(Dictionary<string, object?>))]
+[JsonSerializable(typeof(ItemInfo[]))]
+[JsonSerializable(typeof(RecipeInfo[]))]
+[JsonSerializable(typeof(TileInfo[]))]
+[JsonSerializable(typeof(LiquidInfo[]))]
+[JsonSerializable(typeof(Color))]
 [JsonSerializable(typeof(bool))]
 [JsonSerializable(typeof(byte))]
 [JsonSerializable(typeof(int))]
