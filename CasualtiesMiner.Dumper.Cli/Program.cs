@@ -1,7 +1,7 @@
-﻿using System.Text.Json;
-using ICSharpCode.Decompiler;
+﻿using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.CSharp;
 using Mono.Cecil;
+using System.Text.Json;
 
 namespace CasualtiesMiner.Dumper.Cli;
 
@@ -10,7 +10,6 @@ public class Program
     public static async Task Main(string[] args)
     {
         var fileName = args.Length > 0 ? args[0] : "Assembly-CSharp.dll";
-
         if (!File.Exists(fileName))
         {
             Console.WriteLine($"Can't find {fileName}.");
@@ -36,31 +35,20 @@ public class Program
         }
 
         var dumper = new Dumper(module);
-
         var decompilerSettings = new DecompilerSettings
         {
             ThrowOnAssemblyResolveErrors = false,
             UsingDeclarations = false
         };
+        var cSharpDecompiler = new CSharpDecompiler(fileName, decompilerSettings);
 
-        var jsonSerializerOptions = new JsonSerializerOptions
-        {
-            IncludeFields = true
-        };
-
-        await Task.WhenAll(
-            Task.Run(() => File.WriteAllText("items.json",
-                JsonSerializer.Serialize(dumper.DumpItems(new CSharpDecompiler(fileName, decompilerSettings)),
-                    jsonSerializerOptions))),
-            Task.Run(() => File.WriteAllText("recipes.json",
-                JsonSerializer.Serialize(dumper.DumpRecipes(new CSharpDecompiler(fileName, decompilerSettings)),
-                    jsonSerializerOptions))),
-            Task.Run(() => File.WriteAllText("liquids.json",
-                JsonSerializer.Serialize(dumper.DumpLiquids(new CSharpDecompiler(fileName, decompilerSettings)),
-                    jsonSerializerOptions))),
-            Task.Run(() => File.WriteAllText("tiles.json",
-                JsonSerializer.Serialize(dumper.DumpTiles(new CSharpDecompiler(fileName, decompilerSettings)),
-                    jsonSerializerOptions)))
-        );
+        await File.WriteAllTextAsync("items.json",
+            JsonSerializer.Serialize(dumper.DumpItems(cSharpDecompiler), JsonOptions.CamelCaseOptions));
+        await File.WriteAllTextAsync("recipes.json",
+            JsonSerializer.Serialize(dumper.DumpRecipes(cSharpDecompiler), JsonOptions.CamelCaseOptions));
+        await File.WriteAllTextAsync("liquids.json",
+            JsonSerializer.Serialize(dumper.DumpLiquids(cSharpDecompiler), JsonOptions.CamelCaseOptions));
+        await File.WriteAllTextAsync("tiles.json",
+            JsonSerializer.Serialize(dumper.DumpTiles(cSharpDecompiler), JsonOptions.CamelCaseOptions));
     }
 }

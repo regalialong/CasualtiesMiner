@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <OutputType>Exe</OutputType>
     </PropertyGroup>
@@ -12,5 +12,9 @@
 
     <ItemGroup>
         <ProjectReference Include="..\CasualtiesMiner.Dumper\CasualtiesMiner.Dumper.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="..\libs\Assembly-CSharp.dll" CopyToOutputDirectory="PreserveNewest" Condition="Exists('..\libs\Assembly-CSharp.dll')" />
     </ItemGroup>
 </Project>
