@@ -1,9 +1,9 @@
 using System.Reflection.Metadata.Ecma335;
-using ICSharpCode.Decompiler.CSharp;
-using Mono.Collections.Generic;
 using CasualtiesMiner.Shared.Models;
-using Mono.Cecil.Cil;
+using ICSharpCode.Decompiler.CSharp;
 using Mono.Cecil;
+using Mono.Cecil.Cil;
+using Mono.Collections.Generic;
 
 namespace CasualtiesMiner.Dumper;
 
@@ -230,7 +230,7 @@ public class Dumper
                 }
 
                 if (k >= instructions.Count || instructions[k].Operand is not FieldDefinition fd) continue;
-                
+
                 entry[fd.Name] = ParseFieldValue(decompiler, fd.FieldType, valueOpcodes, fd.Name);
                 j = k;
             }
