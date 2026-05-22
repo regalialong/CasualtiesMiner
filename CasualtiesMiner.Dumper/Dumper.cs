@@ -1,7 +1,7 @@
 using System.Reflection.Metadata.Ecma335;
 using ICSharpCode.Decompiler.CSharp;
 using Mono.Collections.Generic;
-using CasualitiesMiner.Shared;
+using CasualtiesMiner.Shared.Models;
 using Mono.Cecil.Cil;
 using Mono.Cecil;
 

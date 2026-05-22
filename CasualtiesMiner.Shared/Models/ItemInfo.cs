@@ -1,4 +1,4 @@
-namespace CasualitiesMiner.Shared;
+namespace CasualtiesMiner.Shared.Models;
 
 public class CraftingQuality
 {
