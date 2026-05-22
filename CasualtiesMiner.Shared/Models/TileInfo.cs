@@ -1,6 +1,6 @@
 namespace CasualtiesMiner.Shared.Models;
 
-public sealed class TileInfo : IEquatable<TileInfo>
+public sealed partial class TileInfo : IEquatable<TileInfo>
 {
     public float health;
     public required string hitsound;
