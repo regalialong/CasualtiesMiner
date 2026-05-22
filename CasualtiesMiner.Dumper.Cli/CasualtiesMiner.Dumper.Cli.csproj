@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+    </PropertyGroup>
+
+    <Import Project="../CasualtiesMiner.Common.props" />
+
+    <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+        <PublishAot>true</PublishAot>
+        <TrimMode>partial</TrimMode>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\CasualtiesMiner.Dumper\CasualtiesMiner.Dumper.csproj" />
+    </ItemGroup>
+</Project>
