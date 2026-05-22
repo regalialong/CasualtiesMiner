@@ -502,3 +502,11 @@ obj/
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
+
+# BIG NONO
+liquids.json
+recipes.json
+output.txt
+items.json
+tiles.json
+*.lscache
