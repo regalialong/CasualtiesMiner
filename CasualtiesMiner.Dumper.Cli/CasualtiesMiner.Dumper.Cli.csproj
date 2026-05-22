@@ -3,7 +3,7 @@
         <OutputType>Exe</OutputType>
     </PropertyGroup>
 
-    <Import Project="../CasualtiesMiner.Common.props"/>
+    <Import Project="../CasualtiesMiner.Common.props" />
 
     <PropertyGroup Condition="'$(Configuration)' == 'Release'">
         <PublishAot>true</PublishAot>
@@ -11,6 +11,12 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\CasualtiesMiner.Dumper\CasualtiesMiner.Dumper.csproj"/>
+        <ProjectReference Include="..\CasualtiesMiner.Dumper\CasualtiesMiner.Dumper.csproj" />
+    </ItemGroup>
+
+    <!-- Copy ze files -->
+    <ItemGroup>
+        <None Include="..\libs\Assembly-CSharp.dll" CopyToOutputDirectory="PreserveNewest"
+            Condition="Exists('..\libs\Assembly-CSharp.dll')" />
     </ItemGroup>
 </Project>
