@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Collections.Concurrent;
+using System.Text.Json;
 using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.CSharp;
 using Mono.Cecil;
@@ -43,24 +44,35 @@ public class Program
             UsingDeclarations = false
         };
 
-        var jsonSerializerOptions = new JsonSerializerOptions
-        {
-            IncludeFields = true
-        };
+        var dumpedData = new ConcurrentDictionary<string, object>();
 
         await Task.WhenAll(
-            Task.Run(() => File.WriteAllText("items.json",
-                JsonSerializer.Serialize(dumper.DumpItems(new CSharpDecompiler(fileName, decompilerSettings)),
-                    jsonSerializerOptions))),
-            Task.Run(() => File.WriteAllText("recipes.json",
-                JsonSerializer.Serialize(dumper.DumpRecipes(new CSharpDecompiler(fileName, decompilerSettings)),
-                    jsonSerializerOptions))),
-            Task.Run(() => File.WriteAllText("liquids.json",
-                JsonSerializer.Serialize(dumper.DumpLiquids(new CSharpDecompiler(fileName, decompilerSettings)),
-                    jsonSerializerOptions))),
-            Task.Run(() => File.WriteAllText("tiles.json",
-                JsonSerializer.Serialize(dumper.DumpTiles(new CSharpDecompiler(fileName, decompilerSettings)),
-                    jsonSerializerOptions)))
+            Task.Run(() =>
+            {
+                dumpedData.TryAdd("items", dumper.DumpItems(new CSharpDecompiler(fileName, decompilerSettings)));
+            }),
+            Task.Run(() =>
+            {
+                dumpedData.TryAdd("recipes",
+                    dumper.DumpRecipes(new CSharpDecompiler(fileName, decompilerSettings)));
+            }),
+            Task.Run(() =>
+            {
+                dumpedData.TryAdd("liquids",
+                    dumper.DumpLiquids(new CSharpDecompiler(fileName, decompilerSettings)));
+            }),
+            Task.Run(() =>
+            {
+                dumpedData.TryAdd("tiles", dumper.DumpTiles(new CSharpDecompiler(fileName, decompilerSettings)));
+            })
         );
+
+        // TODO: Fix ATO here plz
+        await File.WriteAllTextAsync("data.json",
+            JsonSerializer.Serialize(
+                dumpedData, new JsonSerializerOptions
+                {
+                    IncludeFields = true
+                }));
     }
 }
