@@ -1,3 +1,6 @@
+using System.Diagnostics.CodeAnalysis;
+using System.Text.Json.Serialization;
+
 namespace CasualtiesMiner.Shared.Models;
 
 public sealed class CraftingQuality : IEquatable<CraftingQuality>
@@ -35,7 +38,11 @@ public sealed class CraftingQuality : IEquatable<CraftingQuality>
     }
 }
 
-public sealed class ItemInfo : IEquatable<ItemInfo>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
+[JsonDerivedType(typeof(ItemInfo), "base")]
+[JsonDerivedType(typeof(LiquidItemInfo), "liquid")]
+[JsonDerivedType(typeof(BatteryInfo), "battery")]
+public class ItemInfo : IEquatable<ItemInfo>
 {
     public required bool autoAttack;
     public required string category;
@@ -68,6 +75,11 @@ public sealed class ItemInfo : IEquatable<ItemInfo>
     public required int wearableVisualOffset = 5;
     public required string wearSlotId;
     public required float weight;
+
+    [SetsRequiredMembers]
+    public ItemInfo()
+    {
+    }
 
     public bool Equals(ItemInfo? other)
     {
