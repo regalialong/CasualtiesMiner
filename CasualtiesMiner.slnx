@@ -4,7 +4,8 @@
         <Platform Name="x64"/>
         <Platform Name="x86"/>
     </Configurations>
-    <Project Path="CasualtiesMiner.Shared/CasualtiesMiner.Shared.csproj"/>
-    <Project Path="CasualtiesMiner.Dumper/CasualtiesMiner.Dumper.csproj"/>
-    <Project Path="CasualtiesMiner.Dumper.Cli/CasualtiesMiner.Dumper.Cli.csproj"/>
+    <Project Path="CasualtiesMiner.Dumper.Cli/CasualtiesMiner.Dumper.Cli.csproj" />
+    <Project Path="CasualtiesMiner.Dumper/CasualtiesMiner.Dumper.csproj" />
+    <Project Path="CasualtiesMiner.Generators/CasualtiesMiner.Generators.csproj" Id="ca519ea3-7442-4d14-9980-2f4bc23e671c" />
+    <Project Path="CasualtiesMiner.Shared/CasualtiesMiner.Shared.csproj" />
 </Solution>

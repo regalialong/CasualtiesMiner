@@ -1,7 +1,8 @@
-﻿using System.Text.Json;
+﻿using CasualtiesMiner.Shared.Models;
+using System.Collections.Concurrent;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
-using CasualtiesMiner.Shared.Models;
 
 namespace CasualtiesMiner.Dumper.Cli;
 
@@ -20,6 +21,7 @@ internal static class DumperJsonOptions
             AllowTrailingCommas = true,
             TypeInfoResolver = JsonTypeInfoResolver.Combine(JsonContext.Default),
             IncludeFields = true,
+            WriteIndented = true,
             DefaultIgnoreCondition = JsonIgnoreCondition.Never,
             PropertyNamingPolicy = namingPolicy,
             Converters = { ObjectConverter }
@@ -85,6 +87,18 @@ internal sealed class ObjectJsonConverter : JsonConverter<object?>
                 foreach (var entry in strings) writer.WriteStringValue(entry);
                 writer.WriteEndArray();
                 break;
+            case ItemInfo[] itemInfos:
+                JsonSerializer.Serialize(writer, itemInfos, JsonContext.Default.ItemInfoArray);
+                break;
+            case RecipeInfo[] recipeInfos:
+                JsonSerializer.Serialize(writer, recipeInfos, JsonContext.Default.RecipeInfoArray);
+                break;
+            case LiquidType[] liquidTypes:
+                JsonSerializer.Serialize(writer, liquidTypes, JsonContext.Default.LiquidTypeArray);
+                break;
+            case BlockInfo[] blockInfos:
+                JsonSerializer.Serialize(writer, blockInfos, JsonContext.Default.BlockInfoArray);
+                break;
             case Array array:
                 writer.WriteStartArray();
                 foreach (var element in array) Write(writer, element, options);
@@ -110,10 +124,15 @@ internal sealed class ObjectJsonConverter : JsonConverter<object?>
 [JsonSerializable(typeof(ItemInfo))]
 [JsonSerializable(typeof(ItemInfo[]))]
 [JsonSerializable(typeof(List<ItemInfo>))]
+[JsonSerializable(typeof(LiquidItemInfo))]
+[JsonSerializable(typeof(BatteryInfo))]
+[JsonSerializable(typeof(LiquidStack))]
+[JsonSerializable(typeof(LiquidStack[]))]
+[JsonSerializable(typeof(List<LiquidStack>))]
 [JsonSerializable(typeof(Color))]
-[JsonSerializable(typeof(LiquidInfo))]
-[JsonSerializable(typeof(LiquidInfo[]))]
-[JsonSerializable(typeof(List<LiquidInfo>))]
+[JsonSerializable(typeof(LiquidType))]
+[JsonSerializable(typeof(LiquidType[]))]
+[JsonSerializable(typeof(List<LiquidType>))]
 [JsonSerializable(typeof(RecipeItem))]
 [JsonSerializable(typeof(RecipeItem[]))]
 [JsonSerializable(typeof(List<RecipeItem>))]
@@ -121,9 +140,10 @@ internal sealed class ObjectJsonConverter : JsonConverter<object?>
 [JsonSerializable(typeof(RecipeInfo))]
 [JsonSerializable(typeof(RecipeInfo[]))]
 [JsonSerializable(typeof(List<RecipeInfo>))]
-[JsonSerializable(typeof(TileInfo))]
-[JsonSerializable(typeof(TileInfo[]))]
-[JsonSerializable(typeof(List<TileInfo>))]
+[JsonSerializable(typeof(BlockInfo))]
+[JsonSerializable(typeof(BlockInfo[]))]
+[JsonSerializable(typeof(List<BlockInfo>))]
+[JsonSerializable(typeof(ConcurrentDictionary<string, object>))]
 internal partial class JsonContext : JsonSerializerContext
 {
 }
