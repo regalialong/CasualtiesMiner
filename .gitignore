@@ -509,4 +509,6 @@ recipes.json
 output.txt
 items.json
 tiles.json
+data.json
+
 *.lscache
