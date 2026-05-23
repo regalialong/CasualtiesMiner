@@ -93,7 +93,7 @@ public class Dumper
             item.slotRotation = GetValue<float>(itemDict, "slotRotation");
             item.usable = GetValue<bool>(itemDict, "usable");
             item.usableOnLimb = GetValue<bool>(itemDict, "usableOnLimb");
-            item.rotSpeed = itemDict.TryGetValue("decayMinutes", out var value) ? 1.666f / (float)value! : 0;
+            item.rotSpeed = GetValue<float>(itemDict, "rotSpeed");
             item.useAction = GetValue<string[]>(itemDict, "useAction");
             item.useLimbAction = GetValue<string[]>(itemDict, "useLimbAction");
             item.destroyAtZeroCondition = GetValue<bool>(itemDict, "destroyAtZeroCondition");
