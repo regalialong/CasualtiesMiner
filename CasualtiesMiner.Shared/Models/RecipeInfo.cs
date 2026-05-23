@@ -91,7 +91,9 @@ public sealed class RecipeResult : IEquatable<RecipeResult>
 public sealed class RecipeInfo : IEquatable<RecipeInfo>
 {
     public int category;
-    public bool hasMadeBefore;
+
+    // Game specific field, we don't use this as data
+    // public bool hasMadeBefore;
     public int index;
     public int INT;
     public bool isRepair;
@@ -105,7 +107,7 @@ public sealed class RecipeInfo : IEquatable<RecipeInfo>
         if (ReferenceEquals(this, other)) return true;
 
         if (category != other.category ||
-            hasMadeBefore != other.hasMadeBefore ||
+            // hasMadeBefore != other.hasMadeBefore ||
             index != other.index ||
             INT != other.INT ||
             isRepair != other.isRepair ||
@@ -129,7 +131,7 @@ public sealed class RecipeInfo : IEquatable<RecipeInfo>
         var hash = new HashCode();
 
         hash.Add(category);
-        hash.Add(hasMadeBefore);
+        // hash.Add(hasMadeBefore);
         hash.Add(index);
         hash.Add(INT);
         hash.Add(isRepair);

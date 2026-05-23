@@ -26,68 +26,107 @@ public class Dumper
         var itemList = new List<ItemInfo>();
 
         var itemType = _module.Types.FirstOrDefault(t => t.FullName == "Item");
+
         var itemInfoType = _module.Types.FirstOrDefault(t => t.FullName == "ItemInfo");
-        if (itemType is null || itemInfoType is null) return [];
+        var liquidItemInfo = _module.Types.FirstOrDefault(t => t.FullName == "LiquidItemInfo");
+        var batteryInfo = _module.Types.FirstOrDefault(t => t.FullName == "BatteryInfo");
+
+        if (itemType is null) return [];
+
+        //
+
+        if (itemInfoType is null || liquidItemInfo is null || batteryInfo is null)
+            return [];
 
         var setupMethod = itemType.Methods.FirstOrDefault(m => m.Name == "SetupItems");
         var globalField = itemType.Fields.FirstOrDefault(m => m.Name == "GlobalItems");
         if (setupMethod is null || globalField is null) return [];
 
         var itemInfoCtor = itemInfoType.Methods.First(m => m.IsConstructor);
+        var liquidItemInfoCtor = liquidItemInfo.Methods.FirstOrDefault(m => m.IsConstructor);
+        var batteryInfoCtor = batteryInfo.Methods.FirstOrDefault(m => m.IsConstructor);
+
         var instructions = setupMethod.Body.Instructions;
 
         for (var i = 0; i < instructions.Count - 2; i++)
         {
             if (instructions[i].OpCode.Code != Code.Ldsfld || instructions[i].Operand != globalField) continue;
             if (instructions[i + 1].OpCode.Code != Code.Ldstr) continue;
-            if (instructions[i + 2].OpCode.Code != Code.Newobj || instructions[i + 2].Operand != itemInfoCtor) continue;
+
+            var isLiquid = liquidItemInfoCtor != null && instructions[i + 2].Operand == liquidItemInfoCtor;
+            var isBattery = batteryInfoCtor != null && instructions[i + 2].Operand == batteryInfoCtor;
+
+            if (instructions[i + 2].OpCode.Code != Code.Newobj ||
+                (instructions[i + 2].Operand != itemInfoCtor && !isLiquid && !isBattery)) continue;
 
             var itemName = (string)instructions[i + 1].Operand;
-            var itemInfo = new Dictionary<string, object?>();
+            var itemDict = new Dictionary<string, object?>();
 
-            i = ParseObjectFields(decompiler, instructions, i + 2, "ItemInfo", itemInfo, op =>
+            string[] validTypes = ["ItemInfo"];
+            if (isLiquid) validTypes = ["ItemInfo", "LiquidItemInfo"];
+            if (isBattery) validTypes = ["ItemInfo", "BatteryInfo"];
+
+            i = ParseObjectFields(decompiler, instructions, i + 2, validTypes, itemDict, op =>
                 op is "System.Void System.Collections.Generic.Dictionary`2<System.String,ItemInfo>::Add(!0,!1)"
                     or "System.Collections.Generic.Dictionary`2/Enumerator<!0,!1> System.Collections.Generic.Dictionary`2<System.String,ItemInfo>::GetEnumerator()");
 
-            List<T> ConvertList<T>(List<object?>? objects)
+            ItemInfo item;
+
+            if (isLiquid)
+                item = new LiquidItemInfo
+                {
+                    capacity = GetValue<float>(itemDict, "capacity"),
+                    autoFill = GetValue<bool>(itemDict, "autoFill"),
+                    defaultContents = ConvertList<LiquidStack>(GetValue<List<object?>>(itemDict, "defaultContents"))
+                };
+            else if (isBattery)
+                item = new BatteryInfo
+                {
+                    maxCharge = GetValue<float>(itemDict, "maxCharge")
+                };
+            else
+                item = new ItemInfo();
+
+            // 2. Map all the common base properties exactly once
+            item.name = itemName;
+            item.category = GetValue<string>(itemDict, "category");
+            item.slotRotation = GetValue<float>(itemDict, "slotRotation");
+            item.usable = GetValue<bool>(itemDict, "usable");
+            item.usableOnLimb = GetValue<bool>(itemDict, "usableOnLimb");
+            item.rotSpeed = itemDict.TryGetValue("decayMinutes", out var value) ? 1.666f / (float)value! : 0;
+            item.useAction = GetValue<string[]>(itemDict, "useAction");
+            item.useLimbAction = GetValue<string[]>(itemDict, "useLimbAction");
+            item.destroyAtZeroCondition = GetValue<bool>(itemDict, "destroyAtZeroCondition");
+            item.weight = GetValue<float>(itemDict, "weight");
+            item.scaleWeightWithCondition = GetValue<bool>(itemDict, "scaleWeightWithCondition");
+            item.onlyHoldInHands = GetValue<bool>(itemDict, "onlyHoldInHands");
+            item.autoAttack = GetValue<bool>(itemDict, "autoAttack");
+            item.usableWithLMB = GetValue<bool>(itemDict, "usableWithLMB");
+            item.wearable = GetValue<bool>(itemDict, "wearable");
+            item.wearableCanBeHeld = GetValue<bool>(itemDict, "wearableCanBeHeld");
+            item.desiredWearLimb = GetValue<string>(itemDict, "desiredWearLimb");
+            item.wearSlotId = GetValue<string>(itemDict, "wearSlotId");
+            item.wearableArmor = GetValue<float>(itemDict, "wearableArmor");
+            item.wearableIsolation = GetValue<float>(itemDict, "wearableIsolation");
+            item.wearableHitDurabilityLossMultiplier = GetValue<float>(itemDict, "wearableHitDurabilityLossMultiplier");
+            item.jumpHeightMultChange = GetValue<float>(itemDict, "jumpHeightMultChange");
+            item.combineable = GetValue<bool>(itemDict, "combineable");
+            item.ignoreDepression = GetValue<bool>(itemDict, "ignoreDepression");
+            item.value = GetValue<int>(itemDict, "value");
+            item.wearableVisualOffset = GetValue(itemDict, "wearableVisualOffset", 5);
+            item.tags = GetValue(itemDict, "tags", "").Split(",");
+            item.decayInfo = GetValue<byte>(itemDict, "decayInfo");
+            item.decayMinutes = GetValue<float>(itemDict, "decayMinutes");
+            item.rec = GetValue(itemDict, "rec", 2);
+            item.qualities = ConvertList<CraftingQuality>(GetValue<List<object?>>(itemDict, "qualities"));
+
+            itemList.Add(item);
+            continue;
+
+            static List<T> ConvertList<T>(List<object?>? objects)
             {
                 return objects?.Cast<T>().ToList() ?? [];
             }
-
-            itemList.Add(new ItemInfo
-            {
-                name = itemName,
-                category = GetValue<string>(itemInfo, "category"),
-                slotRotation = GetValue<float>(itemInfo, "slotRotation"),
-                usable = GetValue<bool>(itemInfo, "usable"),
-                usableOnLimb = GetValue<bool>(itemInfo, "usableOnLimb"),
-                rotSpeed = itemInfo.TryGetValue("decayMinutes", out var value) ? 1.666f / (float)value! : 0,
-                useAction = GetValue<string[]>(itemInfo, "useAction"),
-                useLimbAction = GetValue<string[]>(itemInfo, "useLimbAction"),
-                destroyAtZeroCondition = GetValue<bool>(itemInfo, "destroyAtZeroCondition"),
-                weight = GetValue<float>(itemInfo, "weight"),
-                scaleWeightWithCondition = GetValue<bool>(itemInfo, "scaleWeightWithCondition"),
-                onlyHoldInHands = GetValue<bool>(itemInfo, "onlyHoldInHands"),
-                autoAttack = GetValue<bool>(itemInfo, "autoAttack"),
-                usableWithLMB = GetValue<bool>(itemInfo, "usableWithLMB"),
-                wearable = GetValue<bool>(itemInfo, "wearable"),
-                wearableCanBeHeld = GetValue<bool>(itemInfo, "wearableCanBeHeld"),
-                desiredWearLimb = GetValue<string>(itemInfo, "desiredWearLimb"),
-                wearSlotId = GetValue<string>(itemInfo, "wearSlotId"),
-                wearableArmor = GetValue<float>(itemInfo, "wearableArmor"),
-                wearableIsolation = GetValue<float>(itemInfo, "wearableIsolation"),
-                wearableHitDurabilityLossMultiplier = GetValue<float>(itemInfo, "wearableHitDurabilityLossMultiplier"),
-                jumpHeightMultChange = GetValue<float>(itemInfo, "jumpHeightMultChange"),
-                combineable = GetValue<bool>(itemInfo, "combineable"),
-                ignoreDepression = GetValue<bool>(itemInfo, "ignoreDepression"),
-                value = GetValue<int>(itemInfo, "value"),
-                wearableVisualOffset = GetValue(itemInfo, "wearableVisualOffset", 5),
-                tags = GetValue(itemInfo, "tags", "").Split(","),
-                decayInfo = GetValue<byte>(itemInfo, "decayInfo"),
-                decayMinutes = GetValue<float>(itemInfo, "decayMinutes"),
-                rec = GetValue(itemInfo, "rec", 2),
-                qualities = ConvertList<CraftingQuality>(GetValue<List<object?>>(itemInfo, "qualities"))
-            });
         }
 
         return [.. itemList];
@@ -117,7 +156,7 @@ public class Dumper
 
             var recipeDict = new Dictionary<string, object?>();
 
-            i = ParseObjectFields(decompiler, instructions, i + 1, "Recipe", recipeDict,
+            i = ParseObjectFields(decompiler, instructions, i + 1, ["Recipe"], recipeDict,
                 op => op == "System.Void System.Collections.Generic.List`1<Recipe>::Add(!0)");
 
             var recipe = new RecipeInfo
@@ -128,7 +167,8 @@ public class Dumper
                     ? [.. list.Cast<RecipeItem>()]
                     : [],
                 result = GetValue<RecipeResult>(recipeDict, "result"),
-                hasMadeBefore = GetValue<bool>(recipeDict, "hasMadeBefore"),
+                // Not needed, always false
+                // hasMadeBefore = GetValue<bool>(recipeDict, "hasMadeBefore"),
                 category = GetValue<int>(recipeDict, "category"),
                 isRepair = GetValue<bool>(recipeDict, "isRepair"),
                 index = GetValue<int>(recipeDict, "index")
@@ -162,7 +202,7 @@ public class Dumper
             var key = (string)instructions[i].Operand;
             var entry = new Dictionary<string, object?> { ["name"] = key };
 
-            i = ParseObjectFields(decompiler, instructions, i + 1, "LiquidType", entry,
+            i = ParseObjectFields(decompiler, instructions, i + 1, ["LiquidType"], entry,
                 op => op.Contains("::set_Item("));
 
             List<T> ConvertList<T>(List<object?>? objects)
@@ -256,7 +296,7 @@ public class Dumper
         CSharpDecompiler decompiler,
         Collection<Instruction> instructions,
         int startIndex,
-        string declaringTypeName,
+        string[] declaringTypeNames,
         Dictionary<string, object?> target,
         Func<string, bool> isStopCall)
     {
@@ -278,7 +318,7 @@ public class Dumper
                 var next = instructions[i];
                 if (next.OpCode.Code == Code.Stfld
                     && next.Operand is FieldDefinition fd
-                    && fd.DeclaringType.Name == declaringTypeName)
+                    && declaringTypeNames.Contains(fd.DeclaringType.Name))
                 {
                     target[fd.Name] = ParseFieldValue(decompiler, fd.FieldType, valueOpcodes, fd.Name);
                     break;
@@ -312,8 +352,7 @@ public class Dumper
         return type.Name switch
         {
             "String" => instructions[0].Operand ?? instructions[0].OpCode.Name,
-            "Recognition" => ParseInt(instructions[0]),
-            "SleepQuality" => ParseInt(instructions[0]),
+            "Recognition" or "SleepQuality" => ParseInt(instructions[0]),
             _ => ParseComplexValue(decompiler, type, instructions, fieldName)
         };
     }
@@ -326,6 +365,15 @@ public class Dumper
     {
         switch (type.FullName)
         {
+            case "LiquidStack":
+            {
+                return new LiquidStack
+                {
+                    liquidId = (string)instructions[0].Operand,
+                    amount = Convert.ToSingle(instructions[1].Operand)
+                };
+            }
+
             case "RecipeResult":
             {
                 var dict = new Dictionary<string, object?>();
@@ -344,6 +392,8 @@ public class Dumper
 
             case "RecipeItem":
             {
+                var minimumCondition = ParseInt(instructions[0]);
+
                 var dict = new Dictionary<string, object?>();
                 foreach (var (f, vals) in ExtractFields(decompiler, instructions))
                     dict[f.Name] = ParseFieldValue(decompiler, f.FieldType, vals, f.Name);
@@ -354,7 +404,9 @@ public class Dumper
                     specificId = GetValue<string>(dict, "specificId"),
                     isLiquid = GetValue<bool>(dict, "isLiquid"),
                     quality = GetValue<CraftingQuality>(dict, "quality"),
-                    minimumCondition = GetValue(dict, "minimumCondition", 0.9f),
+                    minimumCondition = dict.ContainsKey("minimumCondition")
+                        ? GetValue(dict, "minimumCondition", 0.9f)
+                        : minimumCondition,
                     destroyItem = GetValue(dict, "destroyItem", true),
                     ignoredId = GetValue<string>(dict, "ignoredId")
                 };
@@ -414,7 +466,7 @@ public class Dumper
             case "LiquidType/OnDrink":
             case "LiquidType/OnHealthUse":
             {
-                var pointerToDelegate = instructions.First(p => p.OpCode.Code == Code.Ldftn);
+                var pointerToDelegate = instructions.FirstOrDefault(p => p.OpCode.Code == Code.Ldftn);
                 if (pointerToDelegate is null) return null;
 
                 var methodRef = (MethodReference)pointerToDelegate.Operand;
