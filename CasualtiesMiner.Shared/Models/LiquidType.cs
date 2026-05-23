@@ -1,4 +1,4 @@
-namespace CasualtiesMiner.Shared.Models;
+﻿namespace CasualtiesMiner.Shared.Models;
 
 public sealed class Color : IEquatable<Color>
 {
@@ -40,20 +40,9 @@ public sealed class Color : IEquatable<Color>
     }
 }
 
-public sealed class LiquidInfo : IEquatable<LiquidInfo>
+public sealed partial class LiquidType : IEquatable<LiquidType>
 {
-    public required Color color;
-    public bool healthUsable;
-    public bool injectable;
-    public float injectionSickness = 1f;
-    public bool localeFromItem;
-    public required string name;
-    public required string[] onDrink;
-    public required string[] onHealthUse;
-    public List<CraftingQuality> qualities = [];
-    public float valuePerLiter;
-
-    public bool Equals(LiquidInfo? other)
+    public bool Equals(LiquidType? other)
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
@@ -63,7 +52,7 @@ public sealed class LiquidInfo : IEquatable<LiquidInfo>
             injectable != other.injectable ||
             Math.Abs(injectionSickness - other.injectionSickness) > 0.00001 ||
             localeFromItem != other.localeFromItem ||
-            name != other.name ||
+            localeName != other.localeName ||
             Math.Abs(valuePerLiter - other.valuePerLiter) > 0.00001)
             return false;
 
@@ -82,7 +71,7 @@ public sealed class LiquidInfo : IEquatable<LiquidInfo>
 
     public override bool Equals(object? obj)
     {
-        return Equals(obj as LiquidInfo);
+        return Equals(obj as LiquidType);
     }
 
     public override int GetHashCode()
@@ -94,7 +83,7 @@ public sealed class LiquidInfo : IEquatable<LiquidInfo>
         hash.Add(injectable);
         hash.Add(injectionSickness);
         hash.Add(localeFromItem);
-        hash.Add(name);
+        hash.Add(localeName);
         hash.Add(valuePerLiter);
         hash.Add(GetSequenceHashCode(onDrink));
         hash.Add(GetSequenceHashCode(onHealthUse));
@@ -112,13 +101,13 @@ public sealed class LiquidInfo : IEquatable<LiquidInfo>
         return hash.ToHashCode();
     }
 
-    public static bool operator ==(LiquidInfo? left, LiquidInfo? right)
+    public static bool operator ==(LiquidType? left, LiquidType? right)
     {
         if (left is null) return right is null;
         return left.Equals(right);
     }
 
-    public static bool operator !=(LiquidInfo? left, LiquidInfo? right)
+    public static bool operator !=(LiquidType? left, LiquidType? right)
     {
         return !(left == right);
     }

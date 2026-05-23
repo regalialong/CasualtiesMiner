@@ -1,13 +1,10 @@
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using System.Text.Json.Serialization;
 
 namespace CasualtiesMiner.Shared.Models;
 
-public sealed class CraftingQuality : IEquatable<CraftingQuality>
+public sealed partial class CraftingQuality : IEquatable<CraftingQuality>
 {
-    public required float amount;
-    public required string id;
-
     public bool Equals(CraftingQuality? other)
     {
         if (other is null) return false;
@@ -42,40 +39,8 @@ public sealed class CraftingQuality : IEquatable<CraftingQuality>
 [JsonDerivedType(typeof(ItemInfo), "base")]
 [JsonDerivedType(typeof(LiquidItemInfo), "liquid")]
 [JsonDerivedType(typeof(BatteryInfo), "battery")]
-public class ItemInfo : IEquatable<ItemInfo>
+public partial class ItemInfo : IEquatable<ItemInfo>
 {
-    public required bool autoAttack;
-    public required string category;
-    public required bool combineable;
-    public required byte decayInfo;
-    public required float decayMinutes;
-    public required string desiredWearLimb;
-    public required bool destroyAtZeroCondition;
-    public required bool ignoreDepression;
-    public required float jumpHeightMultChange;
-    public required string name;
-    public required bool onlyHoldInHands;
-    public required List<CraftingQuality> qualities;
-    public required int rec;
-    public required float rotSpeed;
-    public required bool scaleWeightWithCondition;
-    public required float slotRotation;
-    public required string[] tags = [];
-    public required bool usable;
-    public required bool usableOnLimb;
-    public required bool usableWithLMB;
-    public required string[] useAction;
-    public required string[] useLimbAction;
-    public required int value;
-    public required bool wearable;
-    public required float wearableArmor;
-    public required bool wearableCanBeHeld;
-    public required float wearableHitDurabilityLossMultiplier;
-    public required float wearableIsolation;
-    public required int wearableVisualOffset = 5;
-    public required string wearSlotId;
-    public required float weight;
-
     [SetsRequiredMembers]
     public ItemInfo()
     {
@@ -95,7 +60,7 @@ public class ItemInfo : IEquatable<ItemInfo>
             destroyAtZeroCondition != other.destroyAtZeroCondition ||
             ignoreDepression != other.ignoreDepression ||
             Math.Abs(jumpHeightMultChange - other.jumpHeightMultChange) > 0.00001 ||
-            name != other.name ||
+            fullName != other.fullName ||
             onlyHoldInHands != other.onlyHoldInHands ||
             rec != other.rec ||
             Math.Abs(rotSpeed - other.rotSpeed) > 0.00001 ||
@@ -149,7 +114,7 @@ public class ItemInfo : IEquatable<ItemInfo>
         hash.Add(destroyAtZeroCondition);
         hash.Add(ignoreDepression);
         hash.Add(jumpHeightMultChange);
-        hash.Add(name);
+        hash.Add(fullName);
         hash.Add(onlyHoldInHands);
         hash.Add(rec);
         hash.Add(rotSpeed);

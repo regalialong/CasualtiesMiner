@@ -1,15 +1,7 @@
-namespace CasualtiesMiner.Shared.Models;
+﻿namespace CasualtiesMiner.Shared.Models;
 
-public sealed class RecipeItem : IEquatable<RecipeItem>
+public sealed partial class RecipeItem : IEquatable<RecipeItem>
 {
-    public bool destroyItem = true;
-    public required string ignoredId;
-    public bool isLiquid;
-    public float minimumCondition = 0.9f;
-    public required CraftingQuality quality;
-    public bool specific;
-    public required string specificId;
-
     public bool Equals(RecipeItem? other)
     {
         if (other is null) return false;

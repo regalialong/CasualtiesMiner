@@ -1,18 +1,8 @@
-namespace CasualtiesMiner.Shared.Models;
+﻿namespace CasualtiesMiner.Shared.Models;
 
-public sealed class TileInfo : IEquatable<TileInfo>
+public sealed partial class BlockInfo : IEquatable<BlockInfo>
 {
-    public float health;
-    public required string hitsound;
-    public bool metallic;
-    public required string name;
-    public bool noVariation;
-    public int sleep;
-    public bool slippery;
-    public required string stepsound;
-    public float toxicity;
-
-    public bool Equals(TileInfo? other)
+    public bool Equals(BlockInfo? other)
     {
         if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
@@ -30,7 +20,7 @@ public sealed class TileInfo : IEquatable<TileInfo>
 
     public override bool Equals(object? obj)
     {
-        return Equals(obj as TileInfo);
+        return Equals(obj as BlockInfo);
     }
 
     public override int GetHashCode()
@@ -48,13 +38,13 @@ public sealed class TileInfo : IEquatable<TileInfo>
         return hash.ToHashCode();
     }
 
-    public static bool operator ==(TileInfo? left, TileInfo? right)
+    public static bool operator ==(BlockInfo? left, BlockInfo? right)
     {
         if (left is null) return right is null;
         return left.Equals(right);
     }
 
-    public static bool operator !=(TileInfo? left, TileInfo? right)
+    public static bool operator !=(BlockInfo? left, BlockInfo? right)
     {
         return !(left == right);
     }

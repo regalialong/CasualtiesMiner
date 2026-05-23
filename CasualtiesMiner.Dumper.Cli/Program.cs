@@ -1,8 +1,7 @@
-using System.Collections.Concurrent;
-using System.Text.Json;
-using ICSharpCode.Decompiler;
+﻿using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.CSharp;
 using Mono.Cecil;
+using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace CasualtiesMiner.Dumper.Cli;
@@ -67,12 +66,9 @@ public class Program
             })
         );
 
-        // TODO: Fix ATO here plz
+        // TODO: Fix AOT here plz
         await File.WriteAllTextAsync("data.json",
             JsonSerializer.Serialize(
-                dumpedData, new JsonSerializerOptions
-                {
-                    IncludeFields = true
-                }));
+                dumpedData, DumperJsonOptions.CamelCaseOptions));
     }
 }

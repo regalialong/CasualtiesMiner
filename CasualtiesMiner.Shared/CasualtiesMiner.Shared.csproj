@@ -4,4 +4,16 @@
     <ItemGroup>
         <ProjectReference Include="..\CasualtiesMiner.Generators\CasualtiesMiner.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
     </ItemGroup>
+
+    <!-- Unity assemblies: metadata-only refs for source generator (compilation.References) -->
+    <ItemGroup Condition="Exists('..\libs\Assembly-CSharp.dll')">
+        <Reference Include="Assembly-CSharp">
+            <HintPath>..\libs\Assembly-CSharp.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+        <Reference Include="UnityEngine.CoreModule">
+            <HintPath>..\libs\UnityEngine.CoreModule.dll</HintPath>
+            <Private>false</Private>
+        </Reference>
+    </ItemGroup>
 </Project>
