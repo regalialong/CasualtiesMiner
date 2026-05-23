@@ -1,15 +1,20 @@
 ﻿using CasualtiesMiner.Shared.Models;
-using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 
 namespace CasualtiesMiner.Dumper.Cli;
 
+internal sealed class DumpedData
+{
+    public ItemInfo[] Items { get; set; } = [];
+    public RecipeInfo[] Recipes { get; set; } = [];
+    public LiquidType[] Liquids { get; set; } = [];
+    public BlockInfo[] Tiles { get; set; } = [];
+}
+
 internal static class DumperJsonOptions
 {
-    private static readonly ObjectJsonConverter ObjectConverter = new();
-
     public static readonly JsonSerializerOptions CamelCaseOptions = CreateOptions(JsonNamingPolicy.CamelCase);
 
     public static readonly JsonSerializerOptions SnakeCaseLowerOptions = CreateOptions(JsonNamingPolicy.SnakeCaseLower);
@@ -23,94 +28,16 @@ internal static class DumperJsonOptions
             IncludeFields = true,
             WriteIndented = true,
             DefaultIgnoreCondition = JsonIgnoreCondition.Never,
-            PropertyNamingPolicy = namingPolicy,
-            Converters = { ObjectConverter }
+            PropertyNamingPolicy = namingPolicy
         };
     }
 }
 
-internal sealed class ObjectJsonConverter : JsonConverter<object?>
-{
-    public override object? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
-        throw new NotSupportedException();
-    }
-
-    public override void Write(Utf8JsonWriter writer, object? value, JsonSerializerOptions options)
-    {
-        switch (value)
-        {
-            case null:
-                writer.WriteNullValue();
-                break;
-            case bool boolean:
-                writer.WriteBooleanValue(boolean);
-                break;
-            case byte byteValue:
-                writer.WriteNumberValue(byteValue);
-                break;
-            case sbyte sbyteValue:
-                writer.WriteNumberValue(sbyteValue);
-                break;
-            case short shortValue:
-                writer.WriteNumberValue(shortValue);
-                break;
-            case ushort ushortValue:
-                writer.WriteNumberValue(ushortValue);
-                break;
-            case int intValue:
-                writer.WriteNumberValue(intValue);
-                break;
-            case uint uintValue:
-                writer.WriteNumberValue(uintValue);
-                break;
-            case long longValue:
-                writer.WriteNumberValue(longValue);
-                break;
-            case ulong ulongValue:
-                writer.WriteNumberValue(ulongValue);
-                break;
-            case float floatValue:
-                writer.WriteNumberValue(floatValue);
-                break;
-            case double doubleValue:
-                writer.WriteNumberValue(doubleValue);
-                break;
-            case decimal decimalValue:
-                writer.WriteNumberValue(decimalValue);
-                break;
-            case string stringValue:
-                writer.WriteStringValue(stringValue);
-                break;
-            case string[] strings:
-                writer.WriteStartArray();
-                foreach (var entry in strings) writer.WriteStringValue(entry);
-                writer.WriteEndArray();
-                break;
-            case ItemInfo[] itemInfos:
-                JsonSerializer.Serialize(writer, itemInfos, JsonContext.Default.ItemInfoArray);
-                break;
-            case RecipeInfo[] recipeInfos:
-                JsonSerializer.Serialize(writer, recipeInfos, JsonContext.Default.RecipeInfoArray);
-                break;
-            case LiquidType[] liquidTypes:
-                JsonSerializer.Serialize(writer, liquidTypes, JsonContext.Default.LiquidTypeArray);
-                break;
-            case BlockInfo[] blockInfos:
-                JsonSerializer.Serialize(writer, blockInfos, JsonContext.Default.BlockInfoArray);
-                break;
-            case Array array:
-                writer.WriteStartArray();
-                foreach (var element in array) Write(writer, element, options);
-                writer.WriteEndArray();
-                break;
-            default:
-                throw new NotSupportedException($"Unsupported JSON value type: {value.GetType().FullName}");
-        }
-    }
-}
-
-[JsonSourceGenerationOptions(UseStringEnumConverter = true)]
+[JsonSourceGenerationOptions(
+    UseStringEnumConverter = true,
+    IncludeFields = true,
+    PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
+[JsonSerializable(typeof(DumpedData))]
 [JsonSerializable(typeof(bool))]
 [JsonSerializable(typeof(byte))]
 [JsonSerializable(typeof(int))]
@@ -143,7 +70,6 @@ internal sealed class ObjectJsonConverter : JsonConverter<object?>
 [JsonSerializable(typeof(BlockInfo))]
 [JsonSerializable(typeof(BlockInfo[]))]
 [JsonSerializable(typeof(List<BlockInfo>))]
-[JsonSerializable(typeof(ConcurrentDictionary<string, object>))]
 internal partial class JsonContext : JsonSerializerContext
 {
 }

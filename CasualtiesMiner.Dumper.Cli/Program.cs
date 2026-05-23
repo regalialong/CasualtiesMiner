@@ -1,7 +1,7 @@
+﻿using CasualtiesMiner.Shared.Models;
 using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.CSharp;
 using Mono.Cecil;
-using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace CasualtiesMiner.Dumper.Cli;
@@ -41,34 +41,28 @@ public class Program
             ThrowOnAssemblyResolveErrors = false,
             UsingDeclarations = false
         };
-        var cSharpDecompiler = new CSharpDecompiler(fileName, decompilerSettings);
 
-        var dumpedData = new ConcurrentDictionary<string, object>();
+        ItemInfo[] items = [];
+        RecipeInfo[] recipes = [];
+        LiquidType[] liquids = [];
+        BlockInfo[] tiles = [];
 
         await Task.WhenAll(
-            Task.Run(() =>
-            {
-                dumpedData.TryAdd("items", dumper.DumpItems(new CSharpDecompiler(fileName, decompilerSettings)));
-            }),
-            Task.Run(() =>
-            {
-                dumpedData.TryAdd("recipes",
-                    dumper.DumpRecipes(new CSharpDecompiler(fileName, decompilerSettings)));
-            }),
-            Task.Run(() =>
-            {
-                dumpedData.TryAdd("liquids",
-                    dumper.DumpLiquids(new CSharpDecompiler(fileName, decompilerSettings)));
-            }),
-            Task.Run(() =>
-            {
-                dumpedData.TryAdd("tiles", dumper.DumpTiles(new CSharpDecompiler(fileName, decompilerSettings)));
-            })
+            Task.Run(() => items = dumper.DumpItems(new CSharpDecompiler(fileName, decompilerSettings))),
+            Task.Run(() => recipes = dumper.DumpRecipes(new CSharpDecompiler(fileName, decompilerSettings))),
+            Task.Run(() => liquids = dumper.DumpLiquids(new CSharpDecompiler(fileName, decompilerSettings))),
+            Task.Run(() => tiles = dumper.DumpTiles(new CSharpDecompiler(fileName, decompilerSettings)))
         );
 
-        // TODO: Fix AOT here plz
+        var dumpedData = new DumpedData
+        {
+            Items = items,
+            Recipes = recipes,
+            Liquids = liquids,
+            Tiles = tiles
+        };
+
         await File.WriteAllTextAsync("data.json",
-            JsonSerializer.Serialize(
-                dumpedData, DumperJsonOptions.CamelCaseOptions));
+            JsonSerializer.Serialize(dumpedData, DumperJsonOptions.CamelCaseOptions));
     }
 }
