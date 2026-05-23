@@ -5,10 +5,4 @@
         <Nullable>enable</Nullable>
         <DebugType>full</DebugType>
     </PropertyGroup>
-
-    <PropertyGroup Condition="'$(Configuration)' == 'Release'">
-        <DebugType>full</DebugType>
-        <PublishAot>true</PublishAot>
-        <TrimMode>partial</TrimMode>
-    </PropertyGroup>
 </Project>

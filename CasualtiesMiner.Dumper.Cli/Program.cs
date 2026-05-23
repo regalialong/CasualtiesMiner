@@ -1,4 +1,6 @@
-﻿using ICSharpCode.Decompiler;
+using System.Collections.Concurrent;
+using System.Text.Json;
+using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.CSharp;
 using Mono.Cecil;
 using System.Text.Json;
@@ -42,13 +44,35 @@ public class Program
         };
         var cSharpDecompiler = new CSharpDecompiler(fileName, decompilerSettings);
 
-        await File.WriteAllTextAsync("items.json",
-            JsonSerializer.Serialize(dumper.DumpItems(cSharpDecompiler), JsonOptions.CamelCaseOptions));
-        await File.WriteAllTextAsync("recipes.json",
-            JsonSerializer.Serialize(dumper.DumpRecipes(cSharpDecompiler), JsonOptions.CamelCaseOptions));
-        await File.WriteAllTextAsync("liquids.json",
-            JsonSerializer.Serialize(dumper.DumpLiquids(cSharpDecompiler), JsonOptions.CamelCaseOptions));
-        await File.WriteAllTextAsync("tiles.json",
-            JsonSerializer.Serialize(dumper.DumpTiles(cSharpDecompiler), JsonOptions.CamelCaseOptions));
+        var dumpedData = new ConcurrentDictionary<string, object>();
+
+        await Task.WhenAll(
+            Task.Run(() =>
+            {
+                dumpedData.TryAdd("items", dumper.DumpItems(new CSharpDecompiler(fileName, decompilerSettings)));
+            }),
+            Task.Run(() =>
+            {
+                dumpedData.TryAdd("recipes",
+                    dumper.DumpRecipes(new CSharpDecompiler(fileName, decompilerSettings)));
+            }),
+            Task.Run(() =>
+            {
+                dumpedData.TryAdd("liquids",
+                    dumper.DumpLiquids(new CSharpDecompiler(fileName, decompilerSettings)));
+            }),
+            Task.Run(() =>
+            {
+                dumpedData.TryAdd("tiles", dumper.DumpTiles(new CSharpDecompiler(fileName, decompilerSettings)));
+            })
+        );
+
+        // TODO: Fix ATO here plz
+        await File.WriteAllTextAsync("data.json",
+            JsonSerializer.Serialize(
+                dumpedData, new JsonSerializerOptions
+                {
+                    IncludeFields = true
+                }));
     }
 }

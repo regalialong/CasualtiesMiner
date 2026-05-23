@@ -2,10 +2,11 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using CasualtiesMiner.Shared.Models;
 
 namespace CasualtiesMiner.Dumper.Cli;
 
-internal static class JsonOptions
+internal static class DumperJsonOptions
 {
     private static readonly ObjectJsonConverter ObjectConverter = new();
 
@@ -91,21 +92,6 @@ internal sealed class ObjectJsonConverter : JsonConverter<object?>
                 foreach (var element in array) Write(writer, element, options);
                 writer.WriteEndArray();
                 break;
-            case Dictionary<string, object?> dictionary:
-                writer.WriteStartObject();
-                foreach (var (key, entryValue) in dictionary)
-                {
-                    writer.WritePropertyName(key);
-                    Write(writer, entryValue, options);
-                }
-
-                writer.WriteEndObject();
-                break;
-            case List<Dictionary<string, object?>> list:
-                writer.WriteStartArray();
-                foreach (var item in list) Write(writer, item, options);
-                writer.WriteEndArray();
-                break;
             default:
                 throw new NotSupportedException($"Unsupported JSON value type: {value.GetType().FullName}");
         }
@@ -113,13 +99,6 @@ internal sealed class ObjectJsonConverter : JsonConverter<object?>
 }
 
 [JsonSourceGenerationOptions(UseStringEnumConverter = true)]
-[JsonSerializable(typeof(List<Dictionary<string, object?>>))]
-[JsonSerializable(typeof(Dictionary<string, object?>))]
-[JsonSerializable(typeof(ItemInfo[]))]
-[JsonSerializable(typeof(RecipeInfo[]))]
-[JsonSerializable(typeof(TileInfo[]))]
-[JsonSerializable(typeof(LiquidInfo[]))]
-[JsonSerializable(typeof(Color))]
 [JsonSerializable(typeof(bool))]
 [JsonSerializable(typeof(byte))]
 [JsonSerializable(typeof(int))]
@@ -127,6 +106,26 @@ internal sealed class ObjectJsonConverter : JsonConverter<object?>
 [JsonSerializable(typeof(double))]
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(string[]))]
+[JsonSerializable(typeof(CraftingQuality))]
+[JsonSerializable(typeof(CraftingQuality[]))]
+[JsonSerializable(typeof(List<CraftingQuality>))]
+[JsonSerializable(typeof(ItemInfo))]
+[JsonSerializable(typeof(ItemInfo[]))]
+[JsonSerializable(typeof(List<ItemInfo>))]
+[JsonSerializable(typeof(Color))]
+[JsonSerializable(typeof(LiquidInfo))]
+[JsonSerializable(typeof(LiquidInfo[]))]
+[JsonSerializable(typeof(List<LiquidInfo>))]
+[JsonSerializable(typeof(RecipeItem))]
+[JsonSerializable(typeof(RecipeItem[]))]
+[JsonSerializable(typeof(List<RecipeItem>))]
+[JsonSerializable(typeof(RecipeResult))]
+[JsonSerializable(typeof(RecipeInfo))]
+[JsonSerializable(typeof(RecipeInfo[]))]
+[JsonSerializable(typeof(List<RecipeInfo>))]
+[JsonSerializable(typeof(TileInfo))]
+[JsonSerializable(typeof(TileInfo[]))]
+[JsonSerializable(typeof(List<TileInfo>))]
 internal partial class JsonContext : JsonSerializerContext
 {
 }
