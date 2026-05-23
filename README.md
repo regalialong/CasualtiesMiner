@@ -17,5 +17,5 @@ Windows
 
 macOS / Linux
 ```
-./CasualtiesMiner.Dumper.Cli.exe path/to/Assembly-CSharp.dll
+./CasualtiesMiner.Dumper.Cli path/to/Assembly-CSharp.dll
 ```
