@@ -1,8 +1,8 @@
-﻿using System.Collections.Concurrent;
-using System.Text.Json;
 using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.CSharp;
 using Mono.Cecil;
+using System.Collections.Concurrent;
+using System.Text.Json;
 
 namespace CasualtiesMiner.Dumper.Cli;
 
@@ -11,7 +11,6 @@ public class Program
     public static async Task Main(string[] args)
     {
         var fileName = args.Length > 0 ? args[0] : "Assembly-CSharp.dll";
-
         if (!File.Exists(fileName))
         {
             Console.WriteLine($"Can't find {fileName}.");
@@ -37,12 +36,12 @@ public class Program
         }
 
         var dumper = new Dumper(module);
-
         var decompilerSettings = new DecompilerSettings
         {
             ThrowOnAssemblyResolveErrors = false,
             UsingDeclarations = false
         };
+        var cSharpDecompiler = new CSharpDecompiler(fileName, decompilerSettings);
 
         var dumpedData = new ConcurrentDictionary<string, object>();
 
@@ -67,12 +66,9 @@ public class Program
             })
         );
 
-        // TODO: Fix ATO here plz
+        // TODO: Fix AOT here plz
         await File.WriteAllTextAsync("data.json",
             JsonSerializer.Serialize(
-                dumpedData, new JsonSerializerOptions
-                {
-                    IncludeFields = true
-                }));
+                dumpedData, DumperJsonOptions.CamelCaseOptions));
     }
 }

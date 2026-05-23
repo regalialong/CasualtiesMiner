@@ -1,9 +1,9 @@
-using System.Reflection.Metadata.Ecma335;
-using CasualtiesMiner.Shared.Models;
+﻿using CasualtiesMiner.Shared.Models;
 using ICSharpCode.Decompiler.CSharp;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Collections.Generic;
+using System.Reflection.Metadata.Ecma335;
 
 namespace CasualtiesMiner.Dumper;
 
@@ -88,7 +88,7 @@ public class Dumper
                 item = new ItemInfo();
 
             // 2. Map all the common base properties exactly once
-            item.name = itemName;
+            item.fullName = itemName;
             item.category = GetValue<string>(itemDict, "category");
             item.slotRotation = GetValue<float>(itemDict, "slotRotation");
             item.usable = GetValue<bool>(itemDict, "usable");
@@ -114,10 +114,14 @@ public class Dumper
             item.ignoreDepression = GetValue<bool>(itemDict, "ignoreDepression");
             item.value = GetValue<int>(itemDict, "value");
             item.wearableVisualOffset = GetValue(itemDict, "wearableVisualOffset", 5);
-            item.tags = GetValue(itemDict, "tags", "").Split(",");
+            item.tags = GetStringArray(itemDict, "actualTags")?.ToString()
+                ?? GetStringArray(itemDict, "tags")?.ToString(); //TEMP
             item.decayInfo = GetValue<byte>(itemDict, "decayInfo");
             item.decayMinutes = GetValue<float>(itemDict, "decayMinutes");
-            item.rec = GetValue(itemDict, "rec", 2);
+            item.rec = new Recognition
+            {
+                min = GetValue(itemDict, "rec", 2)
+            };
             item.qualities = ConvertList<CraftingQuality>(GetValue<List<object?>>(itemDict, "qualities"));
 
             itemList.Add(item);
@@ -180,9 +184,9 @@ public class Dumper
         return [.. recipeList];
     }
 
-    public LiquidInfo[] DumpLiquids(CSharpDecompiler decompiler)
+    public LiquidType[] DumpLiquids(CSharpDecompiler decompiler)
     {
-        var liquidList = new List<LiquidInfo>();
+        var liquidList = new List<LiquidType>();
 
         var liquidsType = _module.Types.FirstOrDefault(t => t.FullName == "Liquids");
         var liquidType = _module.Types.FirstOrDefault(t => t.FullName == "LiquidType");
@@ -210,9 +214,9 @@ public class Dumper
                 return objects?.Cast<T>().ToList() ?? [];
             }
 
-            var liquid = new LiquidInfo
+            var liquid = new LiquidType
             {
-                name = key,
+                localeName = key,
                 color = GetValue<Color>(entry, "color"),
                 valuePerLiter = GetValue<float>(entry, "valuePerLiter"),
                 onDrink = GetValue<string[]>(entry, "onDrink"),
@@ -230,9 +234,9 @@ public class Dumper
         return [.. liquidList];
     }
 
-    public TileInfo[] DumpTiles(CSharpDecompiler decompiler)
+    public BlockInfo[] DumpTiles(CSharpDecompiler decompiler)
     {
-        var tileList = new List<TileInfo>();
+        var tileList = new List<BlockInfo>();
 
         var worldGenType = _module.Types.FirstOrDefault(t => t.FullName == "WorldGeneration");
         var blockInfoType = _module.Types.FirstOrDefault(t => t.FullName == "BlockInfo");
@@ -275,7 +279,7 @@ public class Dumper
                 j = k;
             }
 
-            tileList.Add(new TileInfo
+            tileList.Add(new BlockInfo
             {
                 health = GetValue<float>(entry, "health"),
                 name = GetValue<string>(entry, "name"),
@@ -285,7 +289,7 @@ public class Dumper
                 metallic = GetValue<bool>(entry, "metallic"),
                 toxicity = GetValue<float>(entry, "toxicity"),
                 slippery = GetValue<bool>(entry, "slippery"),
-                sleep = GetValue<int>(entry, "sleep")
+                sleep = GetValue<SleepQuality>(entry, "sleep")
             });
         }
 
@@ -349,6 +353,9 @@ public class Dumper
                 _ => WarnUnhandled(decompiler, type, instructions[0], fieldName)
             };
 
+        if (type.IsArray && type is ArrayType { ElementType.FullName: "System.String" })
+            return ParseStringArray(instructions);
+
         return type.Name switch
         {
             "String" => instructions[0].Operand ?? instructions[0].OpCode.Name,
@@ -366,115 +373,115 @@ public class Dumper
         switch (type.FullName)
         {
             case "LiquidStack":
-            {
-                return new LiquidStack
                 {
-                    liquidId = (string)instructions[0].Operand,
-                    amount = Convert.ToSingle(instructions[1].Operand)
-                };
-            }
+                    return new LiquidStack
+                    {
+                        liquidId = (string)instructions[0].Operand,
+                        amount = Convert.ToSingle(instructions[1].Operand)
+                    };
+                }
 
             case "RecipeResult":
-            {
-                var dict = new Dictionary<string, object?>();
-                foreach (var (f, vals) in ExtractFields(decompiler, instructions))
-                    dict[f.Name] = ParseFieldValue(decompiler, f.FieldType, vals, f.Name);
-
-                return new RecipeResult
                 {
-                    id = GetValue<string>(dict, "id"),
-                    isLiquid = GetValue<bool>(dict, "isLiquid"),
-                    amount = GetValue(dict, "amount", 1),
-                    resultCondition = GetValue(dict, "resultCondition", 1f),
-                    dontDrainResultLiquid = GetValue<bool>(dict, "dontDrainResultLiquid")
-                };
-            }
+                    var dict = new Dictionary<string, object?>();
+                    foreach (var (f, vals) in ExtractFields(decompiler, instructions))
+                        dict[f.Name] = ParseFieldValue(decompiler, f.FieldType, vals, f.Name);
+
+                    return new RecipeResult
+                    {
+                        id = GetValue<string>(dict, "id"),
+                        isLiquid = GetValue<bool>(dict, "isLiquid"),
+                        amount = GetValue(dict, "amount", 1),
+                        resultCondition = GetValue(dict, "resultCondition", 1f),
+                        dontDrainResultLiquid = GetValue<bool>(dict, "dontDrainResultLiquid")
+                    };
+                }
 
             case "RecipeItem":
-            {
-                var minimumCondition = ParseInt(instructions[0]);
-
-                var dict = new Dictionary<string, object?>();
-                foreach (var (f, vals) in ExtractFields(decompiler, instructions))
-                    dict[f.Name] = ParseFieldValue(decompiler, f.FieldType, vals, f.Name);
-
-                return new RecipeItem
                 {
-                    specific = GetValue<bool>(dict, "specific"),
-                    specificId = GetValue<string>(dict, "specificId"),
-                    isLiquid = GetValue<bool>(dict, "isLiquid"),
-                    quality = GetValue<CraftingQuality>(dict, "quality"),
-                    minimumCondition = dict.ContainsKey("minimumCondition")
-                        ? GetValue(dict, "minimumCondition", 0.9f)
-                        : minimumCondition,
-                    destroyItem = GetValue(dict, "destroyItem", true),
-                    ignoredId = GetValue<string>(dict, "ignoredId")
-                };
-            }
+                    var minimumCondition = ParseInt(instructions[0]);
+
+                    var dict = new Dictionary<string, object?>();
+                    foreach (var (f, vals) in ExtractFields(decompiler, instructions))
+                        dict[f.Name] = ParseFieldValue(decompiler, f.FieldType, vals, f.Name);
+
+                    return new RecipeItem
+                    {
+                        specific = GetValue<bool>(dict, "specific"),
+                        specificId = GetValue<string>(dict, "specificId"),
+                        isLiquid = GetValue<bool>(dict, "isLiquid"),
+                        quality = GetValue<CraftingQuality>(dict, "quality"),
+                        minimumCondition = dict.ContainsKey("minimumCondition")
+                            ? GetValue(dict, "minimumCondition", 0.9f)
+                            : minimumCondition,
+                        destroyItem = GetValue(dict, "destroyItem", true),
+                        ignoredId = GetValue<string>(dict, "ignoredId")
+                    };
+                }
 
             case "Recipes/RecipeCategory":
                 return ParseInt(instructions[0]);
 
             case "CraftingQuality":
-            {
-                var craftingQuality = new CraftingQuality
                 {
-                    id = "",
-                    amount = 0
-                };
+                    var craftingQuality = new CraftingQuality
+                    {
+                        id = "",
+                        amount = 0
+                    };
 
-                switch (instructions.Count)
-                {
-                    case 3:
-                        craftingQuality.id = (string)instructions[0].Operand;
-                        craftingQuality.amount = (float)instructions[1].Operand;
-                        break;
-                    case 2:
-                        craftingQuality.id = (string)instructions[0].Operand;
-                        craftingQuality.amount = 1f;
-                        break;
+                    switch (instructions.Count)
+                    {
+                        case 3:
+                            craftingQuality.id = (string)instructions[0].Operand;
+                            craftingQuality.amount = (float)instructions[1].Operand;
+                            break;
+                        case 2:
+                            craftingQuality.id = (string)instructions[0].Operand;
+                            craftingQuality.amount = 1f;
+                            break;
+                    }
+
+                    return craftingQuality;
                 }
-
-                return craftingQuality;
-            }
 
             case "UnityEngine.Color":
-            {
-                var result = new Color();
-
-                switch (instructions.Count)
                 {
-                    case 4:
-                        result.r = (byte)(ParseInt(instructions[0]) * 255);
-                        result.g = (byte)(ParseInt(instructions[1]) * 255);
-                        result.b = (byte)(ParseInt(instructions[2]) * 255);
-                        result.a = 255;
-                        break;
-                    case 6:
-                        result.r = (byte)ParseInt(instructions[0]);
-                        result.g = (byte)ParseInt(instructions[1]);
-                        result.b = (byte)ParseInt(instructions[2]);
-                        result.a = (byte)ParseInt(instructions[3]);
-                        break;
-                }
+                    var result = new Color();
 
-                return result;
-            }
+                    switch (instructions.Count)
+                    {
+                        case 4:
+                            result.r = (byte)(ParseInt(instructions[0]) * 255);
+                            result.g = (byte)(ParseInt(instructions[1]) * 255);
+                            result.b = (byte)(ParseInt(instructions[2]) * 255);
+                            result.a = 255;
+                            break;
+                        case 6:
+                            result.r = (byte)ParseInt(instructions[0]);
+                            result.g = (byte)ParseInt(instructions[1]);
+                            result.b = (byte)ParseInt(instructions[2]);
+                            result.a = (byte)ParseInt(instructions[3]);
+                            break;
+                    }
+
+                    return result;
+                }
 
             case "ItemInfo/Use":
             case "ItemInfo/UseLimb":
             case "LiquidType/OnDrink":
             case "LiquidType/OnHealthUse":
-            {
-                var pointerToDelegate = instructions.FirstOrDefault(p => p.OpCode.Code == Code.Ldftn);
-                if (pointerToDelegate is null) return null;
+                {
+                    var pointerToDelegate = instructions.FirstOrDefault(p => p.OpCode.Code == Code.Ldftn);
+                    if (pointerToDelegate is null) return null;
 
-                var methodRef = (MethodReference)pointerToDelegate.Operand;
-                var methodDef = methodRef.Resolve();
+                    var methodRef = (MethodReference)pointerToDelegate.Operand;
+                    var methodDef = methodRef.Resolve();
 
-                return decompiler.DecompileAsString(MetadataTokens.EntityHandle(methodDef.MetadataToken.ToInt32()))
-                    .Replace("\r\n", "\n").Replace("\t", "    ").Split("\n");
-            }
+                    return decompiler.DecompileAsString(MetadataTokens.EntityHandle(methodDef.MetadataToken.ToInt32()))
+                        .Replace("\r\n", "\n").Replace("\t", "    ").Split("\n");
+                }
         }
 
         if (type.FullName.StartsWith("System.Collections.Generic.List`1"))
@@ -546,6 +553,55 @@ public class Dumper
             }
 
         return items;
+    }
+
+    private static string[] ParseStringArray(List<Instruction> instructions)
+    {
+        if (instructions.Any(i => i.OpCode.Code == Code.Ldnull))
+            return [];
+
+        var items = new List<string>();
+        string? pending = null;
+
+        foreach (var inst in instructions)
+        {
+            switch (inst.OpCode.Code)
+            {
+                case Code.Ldstr:
+                    pending = (string)inst.Operand;
+                    break;
+                case Code.Stelem_Ref:
+                    if (pending != null)
+                    {
+                        items.Add(pending);
+                        pending = null;
+                    }
+
+                    break;
+            }
+        }
+
+        if (items.Count > 0)
+            return [.. items];
+
+        var single = instructions.FirstOrDefault(i => i.OpCode.Code == Code.Ldstr);
+        if (single?.Operand is string text)
+            return text.Split(',');
+
+        return [];
+    }
+
+    private static string[]? GetStringArray(Dictionary<string, object?> dictionary, string key)
+    {
+        if (!dictionary.TryGetValue(key, out var value) || value is null)
+            return null;
+
+        return value switch
+        {
+            string[] array => array,
+            string text => text.Split(','),
+            _ => null
+        };
     }
 
     private static object WarnUnhandled(CSharpDecompiler _, TypeReference type, Instruction inst,
