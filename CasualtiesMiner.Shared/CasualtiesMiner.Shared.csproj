@@ -1,3 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <Import Project="../CasualtiesMiner.Common.props"/>
+
+    <ItemGroup>
+        <ProjectReference Include="..\CasualtiesMiner.Generators\CasualtiesMiner.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    </ItemGroup>
 </Project>
