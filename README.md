@@ -27,7 +27,7 @@ MediaWiki (the wiki at `casualtiesunknown.miraheze.org` already has Bucket + Scr
 
 ### Data model on the wiki
 
-A reference ("справочник") table plus per-category and per-subtype detail tables:
+A reference table plus per-category and per-subtype detail tables:
 
 - `Bucket:Item` — index of every item with `item_id`, a link to `Item:<id>`, `category`, and stats.
 - `Bucket:Item_<category>` — one bucket per game category (`medical`, `drug`, `food`, `water`,
