@@ -32,6 +32,12 @@ public sealed class ModelGenerator : IIncrementalGenerator
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
+#if DEBUG
+        //if (!System.Diagnostics.Debugger.IsAttached)
+        //{
+        //    System.Diagnostics.Debugger.Launch();
+        //}
+#endif
         context.RegisterSourceOutput(context.CompilationProvider, static (spc, compilation) =>
         {
             var unityAssembly = FindAssembly(compilation, "Assembly-CSharp");
@@ -185,15 +191,6 @@ public sealed class ModelGenerator : IIncrementalGenerator
         }
     }
 
-    private static string ToSourceFileName(INamedTypeSymbol type)
-    {
-        var fullName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
-            .Replace("global::", string.Empty)
-            .Replace(".", "_");
-
-        return $"{fullName}.g.cs";
-    }
-
     private static string GenerateEnum(INamedTypeSymbol enumType)
     {
         const string ns = "CasualtiesMiner.Shared.Models;";
@@ -262,6 +259,15 @@ public sealed class ModelGenerator : IIncrementalGenerator
         sb.AppendLine("}");
 
         return sb.ToString();
+    }
+
+    private static string ToSourceFileName(INamedTypeSymbol type)
+    {
+        var fullName = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
+            .Replace("global::", string.Empty)
+            .Replace(".", "_");
+
+        return $"{fullName}.g.cs";
     }
 
     private static bool TryGetDelegateSignature(ITypeSymbol type, out string signature)

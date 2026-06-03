@@ -31,16 +31,16 @@ public class Dumper
         var liquidItemInfo = _module.Types.FirstOrDefault(t => t.FullName == "LiquidItemInfo");
         var batteryInfo = _module.Types.FirstOrDefault(t => t.FullName == "BatteryInfo");
 
-        if (itemType is null) return [];
-
-        //
+        if (itemType is null)
+            return [];
 
         if (itemInfoType is null || liquidItemInfo is null || batteryInfo is null)
             return [];
 
         var setupMethod = itemType.Methods.FirstOrDefault(m => m.Name == "SetupItems");
         var globalField = itemType.Fields.FirstOrDefault(m => m.Name == "GlobalItems");
-        if (setupMethod is null || globalField is null) return [];
+        if (setupMethod is null || globalField is null)
+            return [];
 
         var itemInfoCtor = itemInfoType.Methods.First(m => m.IsConstructor);
         var liquidItemInfoCtor = liquidItemInfo.Methods.FirstOrDefault(m => m.IsConstructor);
