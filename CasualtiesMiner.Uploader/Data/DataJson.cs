@@ -1,0 +1,32 @@
+using CasualtiesMiner.Shared.Models;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace CasualtiesMiner.Uploader.Data;
+
+internal static class DataJson
+{
+    internal static readonly JsonSerializerOptions ReadOptions = new()
+    {
+        IncludeFields = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true,
+        AllowTrailingCommas = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        NumberHandling = JsonNumberHandling.AllowReadingFromString,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
+    };
+
+    internal static ItemInfo[] LoadItems(string path)
+    {
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+
+        if (!document.RootElement.TryGetProperty("items", out var itemsElement))
+        {
+            throw new InvalidOperationException("data.json has no 'items' array.");
+        }
+
+        return itemsElement.Deserialize<ItemInfo[]>(ReadOptions)
+               ?? throw new InvalidOperationException("Could not parse items from data.json.");
+    }
+}
