@@ -26,7 +26,8 @@ public static class Program
         }
 
         var rows = LoadRows(options);
-        var locales = LoadLocales(options);
+        var locales = await LoadLocalesAsync(options);
+
         Console.WriteLine($"Loaded {rows.Count} items from {options.DataPath}.");
         Console.WriteLine($"Loaded {locales.Locales.Count} locale(s) (default: {locales.DefaultCode}).");
 
@@ -171,9 +172,13 @@ public static class Program
             .ToList();
     }
 
-    private static LocaleCatalog LoadLocales(CliOptions options)
+    private static async Task<LocaleCatalog> LoadLocalesAsync(CliOptions options)
     {
-        var catalog = LocaleCatalog.Load(options.LocaleDir, options.LocalePath, options.DefaultLocale);
+        var catalog = await LocaleCatalog.LoadAsync(
+            options.LocaleDir,
+            options.LocalePath,
+            options.DefaultLocale,
+            options.LocaleTag);
 
         if (catalog.Locales.Count == 0)
             Console.WriteLine("Warning: no locale files found; infoboxes will fall back to item ids.");
@@ -200,9 +205,11 @@ public static class Program
               --api <url>              api.php endpoint (default: casualtiesunknown.miraheze.org)
               --user / --password      Bot credentials (or CU_WIKI_USER / CU_WIKI_PASSWORD env vars).
               --data <path>            Path to data.json (default: data.json).
-              --locale-dir <path>      Directory with game locale JSON files (EN.json, RU.json, ...).
-              --locale <path>          Single locale file if --locale-dir is not set (default: EN.json).
-              --default-locale <code>  Fallback language code (default: EN).
+              --locale-dir <path>      Folder with game locale JSON (only files with a "main" object).
+              --locale <path>          Single locale file (e.g. ru-RU.json); if omitted, only EN is fetched remotely.
+              --locale-tag <git-ref>   Git ref for orsoniks/scavgame-locale (default: v6.1; "6.1" → v6.1).
+              GitHub overrides local only for the same file name (ru-RU.json).
+              --default-locale <code>  Locale id = JSON stem (default: EN → EN.json).
               --trigger-page <title>   Bulk trigger page (default: Project:Items data).
               --request-delay-ms <n> Pause after each API call (default: 750).
               --dry-run                Preview changes without logging in or editing.
@@ -218,6 +225,7 @@ public static class Program
         public string? LocaleDir { get; private init; }
         public string LocalePath { get; private init; } = "EN.json";
         public string DefaultLocale { get; private init; } = LocaleCatalog.DefaultLanguageCode;
+        public string LocaleTag { get; private init; } = LocaleCatalog.DefaultRemoteTag;
         public string TriggerPage { get; private init; } = "Project:Items data";
         public TimeSpan RequestDelay { get; private init; } = TimeSpan.FromMilliseconds(750);
         public bool DryRun { get; private init; }
@@ -241,6 +249,7 @@ public static class Program
                 LocaleDir = Get("--locale-dir"),
                 LocalePath = Get("--locale") ?? "EN.json",
                 DefaultLocale = Get("--default-locale") ?? LocaleCatalog.DefaultLanguageCode,
+                LocaleTag = Get("--locale-tag") ?? LocaleCatalog.DefaultRemoteTag,
                 TriggerPage = Get("--trigger-page") ?? "Project:Items data",
                 RequestDelay = int.TryParse(delayRaw, out var delayMs) ? TimeSpan.FromMilliseconds(delayMs) : TimeSpan.FromMilliseconds(750),
                 DryRun = args.Contains("--dry-run")

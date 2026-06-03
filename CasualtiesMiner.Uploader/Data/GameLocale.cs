@@ -2,7 +2,10 @@
 
 public sealed class GameLocale
 {
+    public string FileName { get; init; } = string.Empty;
+
     public required string Code { get; init; }
+
     public IReadOnlyDictionary<string, string> Main { get; init; } = new Dictionary<string, string>();
     public IReadOnlyDictionary<string, string> Other { get; init; } = new Dictionary<string, string>();
 

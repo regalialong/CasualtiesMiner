@@ -41,7 +41,7 @@ public static class LocaleWikiGenerator
 
     public static string ModuleTitle(string langCode, string suffix)
     {
-        return $"Module:Locale/{langCode.ToUpperInvariant()}/{suffix}";
+        return $"Module:Locale/{langCode}/{suffix}";
     }
 
     public static string BuildItemsModule(GameLocale locale, IReadOnlyCollection<string> itemIds)

@@ -47,8 +47,6 @@ public class Program
         LiquidType[] liquids = [];
         BlockInfo[] tiles = [];
 
-        await dumper.FetchEnglishLocaleAsync();
-
         await Task.WhenAll(
             Task.Run(() => items = dumper.DumpItems(new CSharpDecompiler(fileName, decompilerSettings))),
             Task.Run(() => recipes = dumper.DumpRecipes(new CSharpDecompiler(fileName, decompilerSettings))),
