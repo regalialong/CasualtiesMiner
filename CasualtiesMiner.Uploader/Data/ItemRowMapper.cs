@@ -38,7 +38,7 @@ public static class ItemRowMapper
             //we do this, bcause float number itself is not precise enough
             Weight = (double)(decimal)item.weight,
             Value = item.value,
-            SlotRotation = item.slotRotation,
+            SlotRotation = (double)(decimal)item.slotRotation,
 
             Usable = item.usable,
             UsableOnLimb = item.usableOnLimb,
@@ -58,10 +58,10 @@ public static class ItemRowMapper
             WearableCanBeHeld = item.wearableCanBeHeld,
             WearSlotId = item.wearSlotId ?? string.Empty,
             DesiredWearLimb = item.desiredWearLimb ?? string.Empty,
-            WearableArmor = item.wearableArmor,
-            WearableIsolation = item.wearableIsolation,
-            WearableHitDurabilityLossMultiplier = item.wearableHitDurabilityLossMultiplier,
-            JumpHeightMultChange = item.jumpHeightMultChange,
+            WearableArmor = (double)(decimal)item.wearableArmor,
+            WearableIsolation = (double)(decimal)item.wearableIsolation,
+            WearableHitDurabilityLossMultiplier = (double)(decimal)item.wearableHitDurabilityLossMultiplier,
+            JumpHeightMultChange = (double)(decimal)item.jumpHeightMultChange,
             WearableVisualOffset = item.wearableVisualOffset,
 
             Tags = ParseTags(item.tags),
