@@ -30,6 +30,7 @@ public static class Program
         var locales = await LoadLocalesAsync(options);
 
         Console.WriteLine($"Loaded {itemRows.Count} items from {options.DataPath}.");
+        Console.WriteLine($"Loaded {liquidRows.Count} liquids from {options.DataPath}.");
         Console.WriteLine($"Loaded {locales.Locales.Count} locale(s) (default: {locales.DefaultCode}).");
 
         using var client = new MediaWikiClient(options.ApiUrl, options.RequestDelay);

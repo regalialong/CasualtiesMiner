@@ -33,7 +33,6 @@ public static partial class WikiGenerator
     private static IEnumerable<(string Key, string Value)> EnumerateLiquidFields(LiquidRow row)
     {
         yield return ("liquid_id", LuaFormat.String(row.LiquidId));
-        yield return ("page", LuaFormat.String(row.PageTitle));
         yield return ("color", LuaFormat.String(row.Color));
         yield return ("value_per_liter", LuaFormat.Num(row.ValuePerLiter));
         yield return ("injection_sickness", LuaFormat.Num(row.InjectionSickness));

@@ -98,13 +98,13 @@ public static class BucketSchemas
         """
         {
             "liquid_id":          { "type": "TEXT" },
-            "color":              { "type": "TEXT", "index": false },
+            "color":              { "type": "TEXT" },
             "value_per_liter":    { "type": "DOUBLE" },
             "health_usable":      { "type": "BOOLEAN" },
             "injectable":         { "type": "BOOLEAN" },
             "locale_from_item":   { "type": "BOOLEAN" },
             "injection_sickness": { "type": "DOUBLE" },
-            "qualities":          { "type": "TEXT", "repeated": true },
+            "qualities":          { "type": "TEXT", "repeated": true }
         }
         """;
 

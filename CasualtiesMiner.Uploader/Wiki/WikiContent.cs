@@ -56,9 +56,20 @@ public static class WikiContent
             return normalizeLang(mw.language.getContentLanguage():getCode())
         end
 
+        ---Query item locale information in specified language.
+        ---@param itemId string Item ID or display name. Case insensitive.
+        ---@param lang any Target language. For example: EN
+        ---@return table Item Item language table entry.
         function p.getItem(itemId, lang)
             if not itemId or itemId == "" then return nil end
-            return loadTable(lang, "items")[itemId]
+            local tbl = loadTable(lang, "items")
+            local itemIdLc = string.lower(itemId)
+            local res = tbl[itemId] or tbl[itemIdLc]
+            if res ~= nil then return res end
+
+            for id, item in pairs(tbl) do
+                if item.name == itemId or string.lower(item.name) == itemIdLc then return item end
+            end
         end
 
         function p.ui(key, lang)
@@ -754,21 +765,20 @@ public static class WikiContent
                     r[k] = tostring(v)
                 end
             end
-            if r.liquid_id and not r.page then
-                r.page = "Liquid:" .. r.liquid_id
+            if r.liquid_id then
+                r.liquid_id = tostring(r.liquid_id)
             end
 
             return r
         end
 
         local function putRow(r)
-            bucket("item").put(r)
+            bucket("liquid").put(r)
         end
 
         function p.putAll(frame)
             local data = mw.loadData("Module:Liquid/data")
             for _, row in ipairs(data) do
-                if row.liquid_id and not row.page then row.page = "Liquid:" .. row.liquid_id end
                 putRow(row)
             end
 
