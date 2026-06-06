@@ -1,4 +1,4 @@
-using CasualtiesMiner.Shared.Models;
+﻿using CasualtiesMiner.Shared.Models;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -28,5 +28,18 @@ internal static class DataJson
 
         return itemsElement.Deserialize<ItemInfo[]>(ReadOptions)
                ?? throw new InvalidOperationException("Could not parse items from data.json.");
+    }
+
+    internal static LiquidType[] LoadLiquids(string path)
+    {
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+
+        if (!document.RootElement.TryGetProperty("liquids", out var itemsElement))
+        {
+            throw new InvalidOperationException("data.json has no 'liquids' array.");
+        }
+
+        return itemsElement.Deserialize<LiquidType[]>(ReadOptions)
+               ?? throw new InvalidOperationException("Could not parse liquids from data.json.");
     }
 }

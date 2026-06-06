@@ -11,9 +11,10 @@ public static class BucketSchemas
     /// <summary>
     /// The lightweight reference table that lists every item and its category.
     /// </summary>
-    public const string IndexBucket = "Item";
+    public const string IndexItemBucket = "Item";
     public const string LiquidContainerBucket = "Item_liquid";
     public const string BatteryBucket = "Item_battery";
+    public const string LiquidBucket = "Liquid";
 
     private const string IndexSchema =
         """
@@ -33,7 +34,7 @@ public static class BucketSchemas
         """;
 
     /// <summary>
-    /// Full per-category schema. The same definition is used for every category bucket.
+    /// Full item per-category schema. The same definition is used for every category bucket.
     /// </summary>
     private const string CategorySchema =
         """
@@ -69,7 +70,7 @@ public static class BucketSchemas
         }
         """;
 
-    private const string LiquidSchema =
+    private const string LiquidItemSchema =
         """
         {
             "item_id":          { "type": "TEXT" },
@@ -80,12 +81,29 @@ public static class BucketSchemas
         }
         """;
 
-    private const string BatterySchema =
+    private const string BatteryItemSchema =
         """
         {
             "item_id":    { "type": "TEXT" },
             "page":       { "type": "PAGE" },
             "max_charge": { "type": "DOUBLE" }
+        }
+        """;
+
+    /// <summary>
+    /// Full liquid schema.
+    /// </summary>
+    private const string LiquidSchema =
+        """
+        {
+            "liquid_id":          { "type": "TEXT" },
+            "color":              { "type": "TEXT", "index": false },
+            "value_per_Liter":    { "type": "DOUBLE" },
+            "health_usable":      { "type": "BOOLEAN" },
+            "injectable":         { "type": "BOOLEAN" },
+            "locale_from_item":   { "type": "BOOLEAN" },
+            "injection_sickness": { "type": "DOUBLE" },
+            "qualities":          { "type": "TEXT", "repeated": true },
         }
         """;
 
@@ -104,9 +122,10 @@ public static class BucketSchemas
     {
         var pages = new List<(string, string)>
         {
-            (IndexBucket, IndexSchema),
-            (LiquidContainerBucket, LiquidSchema),
-            (BatteryBucket, BatterySchema)
+            (IndexItemBucket, IndexSchema),
+            (LiquidContainerBucket, LiquidItemSchema),
+            (BatteryBucket, BatteryItemSchema),
+            (LiquidBucket, LiquidSchema),
         };
 
         foreach (var category in ItemRowMapper.Categories)

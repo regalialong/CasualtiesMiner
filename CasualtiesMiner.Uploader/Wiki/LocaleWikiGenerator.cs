@@ -1,5 +1,5 @@
-﻿using System.Text;
-using CasualtiesMiner.Uploader.Data;
+﻿using CasualtiesMiner.Uploader.Data;
+using System.Text;
 
 namespace CasualtiesMiner.Uploader.Wiki;
 
@@ -45,6 +45,27 @@ public static class LocaleWikiGenerator
     }
 
     public static string BuildItemsModule(GameLocale locale, IReadOnlyCollection<string> itemIds)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine(GeneratedHeader);
+        sb.AppendLine("return {");
+
+        foreach (var id in itemIds.OrderBy(x => x, StringComparer.Ordinal))
+        {
+            var name = locale.GetItemName(id);
+            var description = locale.GetItemDescription(id);
+
+            sb.Append("  [").Append(LuaFormat.String(id)).Append("] = { ");
+            sb.Append("name = ").Append(LuaFormat.String(name)).Append(", ");
+            sb.Append("description = ").Append(LuaFormat.String(description));
+            sb.AppendLine(" },");
+        }
+
+        sb.AppendLine("}");
+        return sb.ToString();
+    }
+
+    public static string BuildLiquidsModule(GameLocale locale, IReadOnlyCollection<string> itemIds)
     {
         var sb = new StringBuilder();
         sb.AppendLine(GeneratedHeader);

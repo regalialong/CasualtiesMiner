@@ -3,7 +3,7 @@
 namespace CasualtiesMiner.Uploader.Data;
 
 /// <summary>
-/// Converts dumped <see cref="ItemInfo" /> instances into wiki-ready <see cref="ItemRow" />s.
+/// Converts dumped <see cref="ItemInfo"/> instances into wiki-ready <see cref="ItemRow"/>s.
 /// </summary>
 public static class ItemRowMapper
 {
@@ -77,15 +77,22 @@ public static class ItemRowMapper
 
     private static string NormalizeCategory(string? category)
     {
-        if (string.IsNullOrWhiteSpace(category)) return "custom";
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            return "custom";
+        }
 
         var normalized = category.Trim().ToLowerInvariant();
+
         return Categories.Contains(normalized) ? normalized : "custom";
     }
 
     private static string[] ParseTags(string? tags)
     {
-        if (string.IsNullOrWhiteSpace(tags)) return [];
+        if (string.IsNullOrWhiteSpace(tags))
+        {
+            return [];
+        }
 
         return tags
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)

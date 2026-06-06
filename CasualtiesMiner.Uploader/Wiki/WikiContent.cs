@@ -1,16 +1,16 @@
 ﻿namespace CasualtiesMiner.Uploader.Wiki;
 
 /// <summary>
-/// Hand-authored wiki pages (Lua router, locale resolver, template, trigger page).
+/// Hand-authored wiki pages (Lua router, locale resolver, trigger page).
 /// Generated pages: <c>Module:Item/data</c>, <c>Module:Locale/&lt;lang&gt;/*</c>.
 /// </summary>
 public static class WikiContent
 {
     public const string RouterModuleTitle = "Module:ItemData";
     public const string ItemBucketModuleTitle = "Module:ItemBucket";
+    public const string LiquidBucketModuleTitle = "Module:LiquidBucket";
     public const string LocaleModuleTitle = "Module:Locale";
     public const string DataModuleTitle = "Module:Item/data";
-    public const string ItemTemplateTitle = "Template:Item";
 
     /// <summary>
     /// Resolves localized item names, descriptions and UI labels at render time.
@@ -93,16 +93,19 @@ public static class WikiContent
     public const string ItemBucketModule =
         """
         -- Module:ItemBucket
-        -- Usage on a page: {{Item|shotgun}}  or  {{#invoke:ItemBucket|infobox|shotgun}}
-        
+        -- Usage on a page: {{#invoke:ItemBucket|infobox|shotgun}}
+
         local Locale = require("Module:Locale")
         local getArgs = require("Module:Arguments").getArgs
         local bit32 = require( 'bit32' )
         local yesNo = require("Module:Yesno")
-        
+
+        -- if true, enables debug printing. to be used when editing this module.
+        local DEBUG = false
+
         local p = {}
         local lang = mw.getContentLanguage()
-        
+
         local DETAIL_COLUMNS = {
             "item_id", "page", "weight", "value", "tags", "qualities", "slot_rotation",
             "usable", "usable_on_limb", "usable_with_lmb", "auto_attack", "only_hold_in_hands",
@@ -112,34 +115,34 @@ public static class WikiContent
             "wearable_armor", "wearable_isolation", "wear_hit_dur_loss_mult",
             "jump_height_mult_change", "wearable_visual_offset",
         }
-        
+
         local function merge(into, from)
             if not from then return end
             for k, v in pairs(from) do into[k] = v end
         end
-        
+
         local function firstRow(result)
             return result and result[1] or nil
         end
-        
+
         function p.fetch(itemId)
             local index = firstRow(bucket("item")
                 .select("item_id", "category", "subtype", "weight", "value", "tags", "usable", "wearable", "combineable", "obtainable")
                 .where("item_id", itemId)
                 .run())
-        
+
             if not index then return nil end
-        
+
             local row = {}
             merge(row, index)
-        
+
             local category = row.category or "custom"
             local detail = firstRow(bucket("item_" .. category)
                 .select(unpack(DETAIL_COLUMNS))
                 .where("item_id", itemId)
                 .run())
             merge(row, detail)
-        
+
             if row.subtype == "liquid" then
                 merge(row, firstRow(bucket("item_liquid")
                     .select("capacity", "auto_fill", "default_contents")
@@ -151,14 +154,14 @@ public static class WikiContent
                     .where("item_id", itemId)
                     .run()))
             end
-        
+
             return row
         end
-        
+
         function capitalizeFirst(str)
             return (str:gsub("^%l", string.upper))
         end
-        
+
         local function paramValue(v)
             if v == nil then return "" end
             if type(v) == "boolean" then
@@ -169,11 +172,11 @@ public static class WikiContent
             end
             return tostring(v)
         end
-        
+
         local function escapeTemplate(v)
             return paramValue(v):gsub("|", "{{!}}")
         end
-        
+
         local function assert_not_nil(value, error_message)
             if value == nil then
                 if error_message == nil then
@@ -182,20 +185,20 @@ public static class WikiContent
                     error(error_message)
                 end
             end
-        
+
             return value
         end
-        
+
         local function reduce_num_table(tbl, reduceFn, initial_value)
             local out = initial_value
-        
+
             for i, v in ipairs(tbl) do
                 out = reduceFn(out, v, i, tbl)
             end
-        
+
             return out
         end
-        
+
         local function map_numeric_table(tbl, mapFn)
             local res = {}
             for _, v in ipairs(tbl) do
@@ -203,20 +206,20 @@ public static class WikiContent
             end
             return res
         end
-        
+
         local function round(num)
             return math.floor(num + 0.5)
         end
-        
+
         -- Source - https://stackoverflow.com/a/67917761
         -- Posted by George Williams, modified by community. See post 'Timeline' for change history
         -- Retrieved 2026-05-25, License - CC BY-SA 4.0
-        
+
         local function round_to_digit(num, dp)
             --[[
             round a number to so-many decimal of places, which can be negative,
             e.g. -1 places rounds to 10's,
-        
+
             examples
                 173.2562 rounded to 0 dps is 173.0
                 173.2562 rounded to 2 dps is 173.26
@@ -225,13 +228,13 @@ public static class WikiContent
             local mult = 10^(dp or 0)
             return math.floor(num * mult + 0.5)/mult
         end
-        
+
         local function format_decay(minutes)
             local durationStr = lang:formatDuration(minutes * 60)
             return tostring(mw.html.create("span")
                 :wikitext("<b>[[File:Icon_decay.png|16px|class=pixelated]]&nbsp;" .. durationStr .. "</b>"))
         end
-        
+
         --- Converts list array props `{ "prop1:prop2:propN", "prop1:prop2:propN"  }` to table html elements.
         --- @param args table Args.
         --- @param args.caption string Optional table caption. Example: `"Contents"`
@@ -246,23 +249,24 @@ public static class WikiContent
         --- @param args.postprocess function Optional post-processing function. Called once after the table is processed.
         --- @param args.postprocess.args table `postprocess` function args.
         --- @param args.postprocess.args.rows table Processed rows. Each row is a table with values of either string or any other type resulting from the processing step.
-        ---@return unknown element HTML element.
+        --- @return unknown element HTML element.
         local function listToTableEl(args)
             assert_not_nil(args.rows, "'rows' was not provided")
             args.delimiter = args.delimiter or ":"
-        
+
             local cont = mw.html.create("table")
-        
+
             if args.caption then cont:tag("caption"):wikitext(args.caption) end
-        
+
             if args.headers then
                 local headRow = cont:tag("tr")
                 for _, item in ipairs(args.headers) do
                     headRow:tag("th"):wikitext(item)
                 end
             end
-        
+
             local rows = {}
+
             -- process rows
             for _, item in ipairs(args.rows) do
                 local row = {}
@@ -274,19 +278,19 @@ public static class WikiContent
                             rowsCount = #args.rows
                         }
                     end
-        
+
                     table.insert(row, value)
                 end
                 table.insert(rows, row)
             end
-        
+
             -- postprocess rows
             if args.postprocess then
                 args.postprocess{
                     rows = rows
                 }
             end
-        
+
             -- generate row elements
             for _, row in ipairs(rows) do
                 local rowEl = cont:tag("tr")
@@ -294,12 +298,12 @@ public static class WikiContent
                     rowEl:tag("td"):wikitext(value)
                 end
             end
-        
+
             return cont
         end
-        
+
         -- =================================================
-        
+
         function p.infobox(frame)
             local args = getArgs(frame)
             local itemId = args.item_id or args[1] or args["1"]
@@ -307,22 +311,34 @@ public static class WikiContent
             if itemId == "" then
                 return "[[Category:Errors]]<strong>ItemBucket:</strong> missing item id."
             end
-        
+
             local row = p.fetch(itemId)
             if not row then
                 return "[[Category:Errors]]<strong>ItemBucket:</strong> no Bucket row for '" .. itemId .. "'."
             end
-        
+
             local lang = Locale.resolveLang(frame)
             local localeItem = Locale.getItem(itemId, lang)
-        
+
+            if DEBUG then 
+                mw.log("> lang")
+                mw.logObject(lang)
+                mw.log("> localeItem")
+                mw.logObject(localeItem)
+                mw.log("> args")
+                mw.logObject(args)
+                mw.log("> row")
+                mw.logObject(row)
+            end
+
             local resArgs = {
                 item_id = itemId,
                 display_name = localeItem and localeItem.name or itemId,
                 description = localeItem and localeItem.description or "",
             }
             local yesTemplate = tostring(frame:expandTemplate{ title = "yes" })
-        
+
+
             for key, value in pairs(row) do
                 if key == "decay_minutes" or key == "rot_speed" then
                     -- - decayMinutes = minutes it takes for the item to decay. can sometimes be 0 and rotSpeed be non zero - see rotSpeed.
@@ -330,15 +346,15 @@ public static class WikiContent
                     -- decayMinutes can be calculated back via "(100 / rotSpeed) / 60" (+round to get rid of float err).
                     -- correlates with decayMinutes UNLESS decayMinutes is 0, then this value is used. if both are 0, then they are 0
                     -- rotSpeed can also be NEGATIVE, which means that the item doesn't decay - instead it regenerates.
-        
+
                     local decayMinutes = row.decay_minutes
                     local rotSpeed = row.rot_speed
-        
+
                     if decayMinutes and decayMinutes ~= 0 then
                         resArgs.decay_duration = format_decay(decayMinutes)
                     elseif rotSpeed and rotSpeed ~= 0 then
                         decayMinutes = round_to_digit((100 / rotSpeed) / 60, 1)
-        
+
                         if decayMinutes >= 0 then
                             resArgs.decay_duration = format_decay(decayMinutes)
                         else
@@ -354,9 +370,9 @@ public static class WikiContent
                     --     NoDecayWhenStill = 4, doesn't decay when standing still
                     --     BatteryDecay = 0x10 = uses charge instead of using hp for decay (stuff like flashlight, gravbag)
                     -- }
-        
+
                     local decayInfo = value
-        
+
                     if bit32.btest(decayInfo, 1) then resArgs.no_decay_when_empty_as_container = yesTemplate end
                     if bit32.btest(decayInfo, 2) then resArgs.no_decay_when_not_worn = yesTemplate end
                     if bit32.btest(decayInfo, 4) then resArgs.no_decay_when_standing_still = yesTemplate end
@@ -364,12 +380,12 @@ public static class WikiContent
                 elseif key == "wear_slot_id" or key == "desired_wear_limb" then
                     local wearSlotId = row.wear_slot_id
                     local desiredWearLimb = row.desired_wear_limb
-        
-                    local res = ""
-                    if wearSlotId or desiredWearLimb then
-                        local wearSlotIdTooltip = "Technical field: wearSlotId"
-                        local desiredWearLimbTooltip = "Technical field: desiredWearLimb"
-        
+
+                    if (wearSlotId and wearSlotId ~= "") or (desiredWearLimb and desiredWearLimb ~= "") then
+                        local wearSlotIdTooltip = "ID of the slot this item can be worn in"
+                        local desiredWearLimbTooltip = "ID of the limb this item can be worn on"
+
+                        local res
                         if wearSlotId and desiredWearLimb then
                             res = "{{Tooltip|" .. desiredWearLimb .. "|" .. desiredWearLimbTooltip .. "}} {{Tooltip|" .. wearSlotId .. "|" .. wearSlotIdTooltip .. "}}"
                         elseif wearSlotId then
@@ -377,17 +393,17 @@ public static class WikiContent
                         else
                             res = "{{Tooltip|" .. desiredWearLimb .. "|" .. desiredWearLimbTooltip .. "}}"
                         end
+
+                        resArgs.wearable_on = frame:preprocess("<code>" .. res .. "</code>")
                     end
-        
-                    resArgs.wearable_onn = frame:preprocess("<code>" .. res .. "</code>")
                 elseif key == "weight" then
                     local weight = row.weight
                     local scaleWeightWithCondition = yesNo(row.scale_weight_with_condition)
-        
+
                     local res = ""
                     if weight then
                         res = "{{ui icon|weight|" .. weight .. "}}"
-        
+
                         if scaleWeightWithCondition then
                             res = res .. " " .. '<br><span style="color: gray; filter: contrast(25%);">{{ui icon|weight|0.1}} <sub style="vertical-align: middle;">(minimal)</sub></span>'
                         end
@@ -395,25 +411,25 @@ public static class WikiContent
                     resArgs.weight = frame:preprocess(res)
                 elseif key == "rec" then
                     local rec = value
-        
+
                     if rec == 0 then
                         resArgs.rec_min = "<span style='color: #fc007c;'>None required</span>"
                     else
                         local container = mw.html.create("div")
                             :addClass("rec-grid")
-        
+
                         for i = 1, 20 do
                             local cell = container:tag("div")
-        
+
                             if i <= rec then
                                 cell:addClass("f")
                             end
                         end
-        
+
                         local wrapper = mw.html.create("div")
                             :wikitext("<span style='color: #fc007c;'>'''INT "..rec.." required'''</span>\n")
                             :node(container)
-        
+
                         resArgs.rec_min = tostring(wrapper)
                     end
                 elseif key == "default_contents" then
@@ -432,23 +448,23 @@ public static class WikiContent
                             if valueNum == nil then error("failed to parse amount in 'default_contents' to number; value: " .. args.value) end
                             args.value = valueNum
                         end
-        
+
                         return args.value
                     end
-        
+
                     function postprocess(args)
                         if #args.rows < 2 then return end
-        
+
                         local amounts = map_numeric_table(args.rows, function (row)
                             -- column: Amount 
                             return row[2]
                         end)
-                        
+
                         local totalAmount = reduce_num_table(amounts, function (acc, value)
                             -- can add bcs converted to number in process step
                             return acc + value
                         end, 0)
-        
+
                         for _, row in ipairs(args.rows) do
                             for column, value in ipairs(row) do
                                 -- column: Amount 
@@ -460,7 +476,7 @@ public static class WikiContent
                             end
                         end
                     end
-        
+
                     resArgs[key] = tostring(listToTableEl{
                         caption = frame:preprocess("{{ui tooltip|Contents|Default contents of this container.}}"),
                         headers = { "Substance", "Amount (mL)" }, 
@@ -477,10 +493,10 @@ public static class WikiContent
                         elseif args.column == 2 then
                             return args.value or "1"
                         end
-        
+
                         return args.value
                     end
-        
+
                     function postprocess(args)
                         if #args.rows < 2 then
                             for _, row in ipairs(args.rows) do
@@ -489,9 +505,9 @@ public static class WikiContent
                             end
                         end
                     end
-        
+
                     resArgs[key] = tostring(listToTableEl{
-                        caption = frame:preprocess("{{ui tooltip|Qualities|Specific characteristics of this item.}}"),
+                        caption = frame:preprocess("{{ui icon|quality|{{ui tooltip|Qualities|Specific characteristics of this item.}}}}"),
                         headers = { "Quality", "Count" },
                         rows = value,
                         process = process,
@@ -501,26 +517,31 @@ public static class WikiContent
                     resArgs[key] = paramValue(value)
                 end
             end
-        
+
+            if DEBUG then 
+                mw.log("> resArgs")
+                mw.logObject(resArgs)
+            end
+
             return frame:expandTemplate{ title = "Item Infobox", args = resArgs }
         end
-        
+
         -- Renders N infoboxes. For debugging purposes.
         function p.n_infoboxes(frame)
             local n = tonumber(frame.args.n) or 1
             local from = tonumber(frame.args.from) or 1
-        
+
             local parent = mw.html.create("div")
                 :css("display", "flex")
                 :css("flex-direction", "row")
                 :css("flex-wrap", "wrap")
-        
+
             local queryRes = bucket("item")
                 .select("item_id")
                 .run()
-        
+
             local total = #queryRes
-        
+
             local count = 0
             for _, obj in ipairs(queryRes) do
                 count = count + 1
@@ -529,14 +550,29 @@ public static class WikiContent
                     frame.args[1] = itemId
                     parent:node(p.infobox(frame))
                 end
-        
+
                 if count == (from + n) then break end
             end
-        
+
             return "Displaying " .. from .. " to " .. count .. " of " .. total, parent
         end
-        
+
         return p
+        """;
+
+    /// <summary>
+    /// Reads a row from Bucket + locale strings, formats fields (weight, decay, rec, wear slots),
+    /// and expands <c>Template:Item Infobox</c>. Keep in sync with the live wiki module.
+    /// </summary>
+    public const string LiquidBucketModule =
+        """
+        -- =================================================
+
+        function p.infobox(frame)
+            local args = getArgs(frame)
+
+            return frame:expandTemplate{ title = "Liquid Infobox", args = resArgs }
+        end
         """;
 
     public const string RouterModule =
@@ -664,16 +700,5 @@ public static class WikiContent
         It is generated automatically; do not edit by hand.
 
         {{#invoke:ItemData|putAll}}
-        """;
-
-    public const string ItemTemplate =
-        """
-        {{#invoke:ItemBucket|infobox|1={{{1|}}}|item_id={{{item_id|{{{fullName|}}}}}}|lang={{{lang|}}}}}<noinclude>
-        Renders [[Template:Item Infobox]] using stats from [[Extension:Bucket|Bucket]] and text from [[Module:Locale]].
-
-        '''Usage:''' <code><nowiki>{{Item|shotgun}}</nowiki></code> or <code><nowiki>{{Item|item_id=shotgun}}</nowiki></code>
-
-        Run the uploader bulk pass first so Bucket is populated.
-        </noinclude>
         """;
 }

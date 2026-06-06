@@ -25,10 +25,11 @@ public static class Program
             return 1;
         }
 
-        var rows = LoadRows(options);
+        var itemRows = LoadItemRows(options);
+        var liquidRows = LoadLiquidRows(options);
         var locales = await LoadLocalesAsync(options);
 
-        Console.WriteLine($"Loaded {rows.Count} items from {options.DataPath}.");
+        Console.WriteLine($"Loaded {itemRows.Count} items from {options.DataPath}.");
         Console.WriteLine($"Loaded {locales.Locales.Count} locale(s) (default: {locales.DefaultCode}).");
 
         using var client = new MediaWikiClient(options.ApiUrl, options.RequestDelay);
@@ -58,13 +59,13 @@ public static class Program
 
         if (mode is "locales" or "bulk" or "all")
         {
-            await UploadLocalesAsync(client, locales, rows, options);
+            await UploadLocalesAsync(client, locales, itemRows, liquidRows, options);
         }
 
         if (mode is "bulk" or "all")
         {
             await UploadItemModulesAsync(client, options);
-            await UploadBulkAsync(client, rows, options);
+            await UploadBulkAsync(client, itemRows, options);
         }
 
         Console.WriteLine("Done.");
@@ -86,7 +87,8 @@ public static class Program
     private static async Task UploadLocalesAsync(
         MediaWikiClient client,
         LocaleCatalog locales,
-        IReadOnlyList<ItemRow> rows,
+        IReadOnlyList<ItemRow> itemRows,
+        IReadOnlyList<LiquidRow> liquidRows,
         CliOptions options)
     {
         Console.WriteLine("== Uploading locale modules ==");
@@ -101,7 +103,8 @@ public static class Program
             return;
         }
 
-        var itemIds = rows.Select(r => r.ItemId).ToArray();
+        var itemIds = itemRows.Select(r => r.ItemId).ToArray();
+        var liquidItems = liquidRows.Select(r => r.ItemId).ToArray();
 
         foreach (var locale in locales.Locales)
         {
@@ -110,6 +113,15 @@ public static class Program
             var itemsStatus = await client.EditAsync(
                 itemsTitle,
                 LocaleWikiGenerator.BuildItemsModule(locale, itemIds),
+                $"Update {locale.Code} item strings",
+                options.DryRun);
+            Console.WriteLine($"  {itemsTitle}: {itemsStatus}");
+
+            var liquidsTitle = LocaleWikiGenerator.ModuleTitle(locale.Code, "liquids");
+
+            var liquidsStatus = await client.EditAsync(
+                liquidsTitle,
+                LocaleWikiGenerator.BuildLiquidsModule(locale, liquidItems),
                 $"Update {locale.Code} item strings",
                 options.DryRun);
             Console.WriteLine($"  {itemsTitle}: {itemsStatus}");
@@ -135,13 +147,6 @@ public static class Program
             "Update ItemBucket reader",
             options.DryRun);
         Console.WriteLine($"  {WikiContent.ItemBucketModuleTitle}: {bucketModule}");
-
-        var itemTemplate = await client.EditAsync(
-            WikiContent.ItemTemplateTitle,
-            WikiContent.ItemTemplate,
-            "Update Item template (Bucket-backed infobox)",
-            options.DryRun);
-        Console.WriteLine($"  {WikiContent.ItemTemplateTitle}: {itemTemplate}");
     }
 
     private static async Task UploadBulkAsync(MediaWikiClient client, IReadOnlyList<ItemRow> rows, CliOptions options)
@@ -153,7 +158,7 @@ public static class Program
         Console.WriteLine($"  {WikiContent.RouterModuleTitle}: {router}");
 
         var data = await client.EditAsync(
-            WikiContent.DataModuleTitle, WikiGenerator.BuildDataModule(rows), "Regenerate item data", options.DryRun);
+            WikiContent.DataModuleTitle, WikiGenerator.BuildItemDataModule(rows), "Regenerate item data", options.DryRun);
         Console.WriteLine($"  {WikiContent.DataModuleTitle}: {data}");
 
         var trigger = await client.EditAsync(
@@ -161,13 +166,24 @@ public static class Program
         Console.WriteLine($"  {options.TriggerPage}: {trigger}");
     }
 
-    private static IReadOnlyList<ItemRow> LoadRows(CliOptions options)
+    private static IReadOnlyList<ItemRow> LoadItemRows(CliOptions options)
     {
         var items = DataJson.LoadItems(options.DataPath);
 
         return items
             .Where(item => !string.IsNullOrWhiteSpace(item.fullName))
             .Select(ItemRowMapper.Map)
+            .OrderBy(row => row.ItemId, StringComparer.Ordinal)
+            .ToList();
+    }
+
+    private static IReadOnlyList<LiquidRow> LoadLiquidRows(CliOptions options)
+    {
+        var liquids = DataJson.LoadLiquids(options.DataPath);
+
+        return liquids
+            .Where(item => !string.IsNullOrWhiteSpace(item.localeName))
+            .Select(LiquidRowMapper.Map)
             .OrderBy(row => row.ItemId, StringComparer.Ordinal)
             .ToList();
     }

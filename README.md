@@ -46,8 +46,8 @@ Game locale files (`Assets/Lang/EN.json`, community translations, etc.) are uplo
 - `Module:Locale/EN/ui`, … — infobox labels and category names.
 
 Item pages can use any title (e.g. `Pump-action shotgun`). The infobox is driven by the item id
-(`{{Item|shotgun}}`), not the page name. Field labels and descriptions follow the wiki content
-language, or an explicit `|lang=RU` template parameter.
+(`{{#invoke:ItemBucket|infobox|shotgun}}`), not the page name. Field labels and descriptions follow
+the wiki content language, or an explicit `|lang=RU` invoke parameter.
 
 Upload all languages from a directory:
 
@@ -64,17 +64,17 @@ is a bot that edits pages which trigger those calls.
 
 - **`schemas`** — upload `Bucket:*` table definitions (run once or after schema changes).
 - **`locales`** — upload `Module:Locale` and per-language item/UI modules.
-- **`bulk`** — upload locales, `Template:Item`, `Module:ItemBucket`, `Module:Item/data`, and refresh Bucket via the trigger page.
+- **`bulk`** — upload locales, `Module:ItemBucket`, `Module:Item/data`, and refresh Bucket via the trigger page.
 - **`all`** — `schemas`, then `bulk`.
 
-The uploader does **not** create item article pages. Add `{{Item|item_id}}` to pages yourself.
+The uploader does **not** create item article pages. Add `{{#invoke:ItemBucket|infobox|item_id}}` to pages yourself.
 
 ### Item pages on the wiki
 
 After `bulk` has populated Bucket, any page can render the full infobox with one line:
 
 ```wikitext
-{{Item|shotgun}}
+{{#invoke:ItemBucket|infobox|shotgun}}
 ```
 
 Stats come from Bucket; name and description from `Module:Locale`. Your existing `Template:Item Infobox` styling is unchanged.
