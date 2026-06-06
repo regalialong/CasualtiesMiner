@@ -14,6 +14,7 @@ public static class BucketSchemas
     public const string IndexItemBucket = "Item";
     public const string LiquidContainerBucket = "Item_liquid";
     public const string BatteryBucket = "Item_battery";
+
     public const string LiquidBucket = "Liquid";
 
     private const string IndexSchema =
@@ -98,7 +99,7 @@ public static class BucketSchemas
         {
             "liquid_id":          { "type": "TEXT" },
             "color":              { "type": "TEXT", "index": false },
-            "value_per_Liter":    { "type": "DOUBLE" },
+            "value_per_liter":    { "type": "DOUBLE" },
             "health_usable":      { "type": "BOOLEAN" },
             "injectable":         { "type": "BOOLEAN" },
             "locale_from_item":   { "type": "BOOLEAN" },

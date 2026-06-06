@@ -64,7 +64,7 @@ is a bot that edits pages which trigger those calls.
 
 - **`schemas`** — upload `Bucket:*` table definitions (run once or after schema changes).
 - **`locales`** — upload `Module:Locale` and per-language item/UI modules.
-- **`bulk`** — upload locales, `Module:ItemBucket`, `Module:Item/data`, and refresh Bucket via the trigger page.
+- **`bulk`** — upload locales, `Module:ItemBucket`, `Module:Item/data`, `Module:Liquid/data`, and refresh Bucket via trigger pages.
 - **`all`** — `schemas`, then `bulk`.
 
 The uploader does **not** create item article pages. Add `{{#invoke:ItemBucket|infobox|item_id}}` to pages yourself.
@@ -97,7 +97,6 @@ Credentials may also be provided via the `CU_WIKI_USER` / `CU_WIKI_PASSWORD` env
 ### Notes / prerequisites
 
 - Create a bot account at `Special:BotPasswords` with the *Edit existing/new pages* grants.
-- The `bulk` trigger page defaults to `Project:Items data`; override with `--trigger-page` if your wiki
-  prefers another namespace.
+- Bulk refresh edits `Project:Items data` and `Project:Liquid data` (defined in `WikiContent`); the uploader creates them on first run if missing.
 - The dumper currently emits a placeholder for `tags` (the `//TEMP` line in `Dumper.cs`), so the `tags`
   column will be empty until that field stores the raw tag string; the uploader handles this gracefully.

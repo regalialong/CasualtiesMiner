@@ -65,7 +65,7 @@ public static class Program
         if (mode is "bulk" or "all")
         {
             await UploadItemModulesAsync(client, options);
-            await UploadBulkAsync(client, itemRows, options);
+            await UploadBulkAsync(client, itemRows, liquidRows, options);
         }
 
         Console.WriteLine("Done.");
@@ -104,7 +104,7 @@ public static class Program
         }
 
         var itemIds = itemRows.Select(r => r.ItemId).ToArray();
-        var liquidItems = liquidRows.Select(r => r.ItemId).ToArray();
+        var liquidItems = liquidRows.Select(r => r.LiquidId).ToArray();
 
         foreach (var locale in locales.Locales)
         {
@@ -112,7 +112,7 @@ public static class Program
 
             var itemsStatus = await client.EditAsync(
                 itemsTitle,
-                LocaleWikiGenerator.BuildItemsModule(locale, itemIds),
+                LocaleWikiGenerator.BuildObjectsLocaleModule(locale, itemIds, "main"),
                 $"Update {locale.Code} item strings",
                 options.DryRun);
             Console.WriteLine($"  {itemsTitle}: {itemsStatus}");
@@ -121,10 +121,10 @@ public static class Program
 
             var liquidsStatus = await client.EditAsync(
                 liquidsTitle,
-                LocaleWikiGenerator.BuildLiquidsModule(locale, liquidItems),
+                LocaleWikiGenerator.BuildObjectsLocaleModule(locale, liquidItems, "other"),
                 $"Update {locale.Code} item strings",
                 options.DryRun);
-            Console.WriteLine($"  {itemsTitle}: {itemsStatus}");
+            Console.WriteLine($"  {liquidsTitle}: {liquidsStatus}");
 
             var uiTitle = LocaleWikiGenerator.ModuleTitle(locale.Code, "ui");
 
@@ -141,29 +141,60 @@ public static class Program
     {
         Console.WriteLine("== Uploading item display modules ==");
 
-        var bucketModule = await client.EditAsync(
+        var bucketItemModule = await client.EditAsync(
             WikiContent.ItemBucketModuleTitle,
             WikiContent.ItemBucketModule,
             "Update ItemBucket reader",
             options.DryRun);
-        Console.WriteLine($"  {WikiContent.ItemBucketModuleTitle}: {bucketModule}");
+        Console.WriteLine($"  {WikiContent.ItemBucketModuleTitle}: {bucketItemModule}");
+
+        var bucketLiquidModule = await client.EditAsync(
+            WikiContent.LiquidBucketModuleTitle,
+            WikiContent.LiquidBucketModule,
+            "Update ItemBucket reader",
+            options.DryRun);
+        Console.WriteLine($"  {WikiContent.LiquidBucketModuleTitle}: {bucketLiquidModule}");
     }
 
-    private static async Task UploadBulkAsync(MediaWikiClient client, IReadOnlyList<ItemRow> rows, CliOptions options)
+    private static async Task UploadBulkAsync(
+        MediaWikiClient client,
+        IReadOnlyList<ItemRow> itemRows,
+        IReadOnlyList<LiquidRow> liquidRows,
+        CliOptions options)
     {
         Console.WriteLine("== Uploading bulk Bucket data ==");
 
+        Console.WriteLine("== Items ==");
         var router = await client.EditAsync(
-            WikiContent.RouterModuleTitle, WikiContent.RouterModule, "Update item data router", options.DryRun);
-        Console.WriteLine($"  {WikiContent.RouterModuleTitle}: {router}");
+            WikiContent.RouterItemModuleTitle, WikiContent.RouterItemModule, "Update item data router", options.DryRun);
+        Console.WriteLine($"  {WikiContent.RouterItemModuleTitle}: {router}");
 
         var data = await client.EditAsync(
-            WikiContent.DataModuleTitle, WikiGenerator.BuildItemDataModule(rows), "Regenerate item data", options.DryRun);
-        Console.WriteLine($"  {WikiContent.DataModuleTitle}: {data}");
+            WikiContent.ItemDataModuleTitle, WikiGenerator.BuildItemDataModule(itemRows), "Regenerate item data", options.DryRun);
+        Console.WriteLine($"  {WikiContent.ItemDataModuleTitle}: {data}");
 
-        var trigger = await client.EditAsync(
-            options.TriggerPage, WikiContent.TriggerPage, "Refresh Bucket item data", options.DryRun);
-        Console.WriteLine($"  {options.TriggerPage}: {trigger}");
+        Console.WriteLine("== Liquids ==");
+        router = await client.EditAsync(
+            WikiContent.RouterLiquidModuleTitle, WikiContent.RouterLiquidModule, "Update liquid data router", options.DryRun);
+        Console.WriteLine($"  {WikiContent.RouterLiquidModuleTitle}: {router}");
+
+        data = await client.EditAsync(
+            WikiContent.LiquidDataModuleTitle, WikiGenerator.BuildLiquidDataModule(liquidRows), "Regenerate liquid data", options.DryRun);
+        Console.WriteLine($"  {WikiContent.LiquidDataModuleTitle}: {data}");
+
+        var itemTrigger = await client.EditAsync(
+            WikiContent.TriggerItemPageTitle,
+            WikiContent.TriggerItemPage,
+            "Refresh Bucket item data",
+            options.DryRun);
+        Console.WriteLine($"  {WikiContent.TriggerItemPageTitle}: {itemTrigger}");
+
+        var liquidTrigger = await client.EditAsync(
+            WikiContent.TriggerLiquidPageTitle,
+            WikiContent.TriggerLiquidPage,
+            "Refresh Bucket liquid data",
+            options.DryRun);
+        Console.WriteLine($"  {WikiContent.TriggerLiquidPageTitle}: {liquidTrigger}");
     }
 
     private static IReadOnlyList<ItemRow> LoadItemRows(CliOptions options)
@@ -184,7 +215,7 @@ public static class Program
         return liquids
             .Where(item => !string.IsNullOrWhiteSpace(item.localeName))
             .Select(LiquidRowMapper.Map)
-            .OrderBy(row => row.ItemId, StringComparer.Ordinal)
+            .OrderBy(row => row.LiquidId, StringComparer.Ordinal)
             .ToList();
     }
 
@@ -214,7 +245,7 @@ public static class Program
             Modes:
               schemas    Upload Bucket table definitions (Bucket:* pages).
               locales    Upload Module:Locale and Module:Locale/<lang>/* from game JSON files.
-              bulk       Upload locales, ItemBucket, Module:Item/data, and refresh Bucket.
+              bulk       Upload locales, ItemBucket, Module:Item/data, Module:Liquid/data, and refresh Bucket.
               all        schemas, then bulk (locales + modules + Bucket data).
 
             Options:
@@ -226,7 +257,6 @@ public static class Program
               --locale-tag <git-ref>   Git ref for orsoniks/scavgame-locale (default: v6.1; "6.1" → v6.1).
               GitHub overrides local only for the same file name (ru-RU.json).
               --default-locale <code>  Locale id = JSON stem (default: EN → EN.json).
-              --trigger-page <title>   Bulk trigger page (default: Project:Items data).
               --request-delay-ms <n> Pause after each API call (default: 750).
               --dry-run                Preview changes without logging in or editing.
             """);
@@ -242,7 +272,6 @@ public static class Program
         public string LocalePath { get; private init; } = "EN.json";
         public string DefaultLocale { get; private init; } = LocaleCatalog.DefaultLanguageCode;
         public string LocaleTag { get; private init; } = LocaleCatalog.DefaultRemoteTag;
-        public string TriggerPage { get; private init; } = "Project:Items data";
         public TimeSpan RequestDelay { get; private init; } = TimeSpan.FromMilliseconds(750);
         public bool DryRun { get; private init; }
 
@@ -266,7 +295,6 @@ public static class Program
                 LocalePath = Get("--locale") ?? "EN.json",
                 DefaultLocale = Get("--default-locale") ?? LocaleCatalog.DefaultLanguageCode,
                 LocaleTag = Get("--locale-tag") ?? LocaleCatalog.DefaultRemoteTag,
-                TriggerPage = Get("--trigger-page") ?? "Project:Items data",
                 RequestDelay = int.TryParse(delayRaw, out var delayMs) ? TimeSpan.FromMilliseconds(delayMs) : TimeSpan.FromMilliseconds(750),
                 DryRun = args.Contains("--dry-run")
             };

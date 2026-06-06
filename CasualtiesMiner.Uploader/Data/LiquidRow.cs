@@ -6,12 +6,12 @@
 /// </summary>
 public sealed record LiquidRow
 {
-    public required string ItemId { get; init; }
+    public required string LiquidId { get; init; }
 
     /// <summary>
     /// Stable, language-neutral wiki title (<c>Item:bandage</c>).
     /// </summary>
-    public string PageTitle => "Liquid:" + ItemId;
+    public string PageTitle => "Liquid:" + LiquidId;
 
     public required string Color { get; init; }
 

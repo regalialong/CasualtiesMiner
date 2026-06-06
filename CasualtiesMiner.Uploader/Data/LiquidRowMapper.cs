@@ -14,7 +14,7 @@ public sealed class LiquidRowMapper
 
         return new LiquidRow
         {
-            ItemId = id,
+            LiquidId = id,
             Color = item.color.ToHex(),
             ValuePerLiter = item.valuePerLiter,
             InjectionSickness = item.injectionSickness,

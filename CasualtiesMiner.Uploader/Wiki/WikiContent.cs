@@ -6,11 +6,17 @@
 /// </summary>
 public static class WikiContent
 {
-    public const string RouterModuleTitle = "Module:ItemData";
+    public const string LocaleModuleTitle = "Module:Locale";
+
+    public const string RouterItemModuleTitle = "Module:ItemData";
+    public const string RouterLiquidModuleTitle = "Module:LiquidData";
     public const string ItemBucketModuleTitle = "Module:ItemBucket";
     public const string LiquidBucketModuleTitle = "Module:LiquidBucket";
-    public const string LocaleModuleTitle = "Module:Locale";
-    public const string DataModuleTitle = "Module:Item/data";
+    public const string ItemDataModuleTitle = "Module:Item/data";
+    public const string LiquidDataModuleTitle = "Module:Liquid/data";
+
+    public const string TriggerItemPageTitle = "Project:Items data";
+    public const string TriggerLiquidPageTitle = "Project:Liquid data";
 
     /// <summary>
     /// Resolves localized item names, descriptions and UI labels at render time.
@@ -226,6 +232,7 @@ public static class WikiContent
                 173.2562 rounded to -1 dps is 170.0
             ]]--
             local mult = 10^(dp or 0)
+
             return math.floor(num * mult + 0.5)/mult
         end
 
@@ -560,23 +567,8 @@ public static class WikiContent
         return p
         """;
 
-    /// <summary>
-    /// Reads a row from Bucket + locale strings, formats fields (weight, decay, rec, wear slots),
-    /// and expands <c>Template:Item Infobox</c>. Keep in sync with the live wiki module.
-    /// </summary>
-    public const string LiquidBucketModule =
-        """
-        -- =================================================
-
-        function p.infobox(frame)
-            local args = getArgs(frame)
-
-            return frame:expandTemplate{ title = "Liquid Infobox", args = resArgs }
-        end
-        """;
-
-    public const string RouterModule =
-        """
+    public const string RouterItemModule =
+    """
         -- Module:ItemData
         -- Routes language-neutral item rows into Bucket tables.
         -- Localized names/descriptions are resolved at render time via Module:Locale.
@@ -694,11 +686,129 @@ public static class WikiContent
         return p
         """;
 
-    public const string TriggerPage =
+    /// <summary>
+    /// Reads a row from Bucket + locale strings, formats fields (weight, decay, rec, wear slots),
+    /// and expands <c>Template:Item Infobox</c>. Keep in sync with the live wiki module.
+    /// </summary>
+    public const string LiquidBucketModule =
+        """
+        -- =================================================
+
+        function p.infobox(frame)
+            local args = getArgs(frame)
+
+            return frame:expandTemplate{ title = "Liquid Infobox", args = resArgs }
+        end
+        """;
+
+    public const string RouterLiquidModule =
+    """
+        -- Module:LiquidData
+        -- Routes language-neutral liquid rows into Bucket tables.
+        -- Localized names/descriptions are resolved at render time via Module:Locale.
+
+        local Locale = require("Module:Locale")
+
+        local p = {}
+
+        local NUMBER_FIELDS = {
+            value_per_liter = true, injection_sickness = true,
+        }
+
+        local BOOLEAN_FIELDS = {
+            health_usable = true, injectable = true, locale_from_item = true,
+        }
+
+        local LIST_FIELDS = { qualities = true }
+
+        local function toBoolean(v)
+            if v == true then return true end
+            if v == false or v == nil then return false end
+            v = tostring(v):lower()
+
+            return v == "true" or v == "1" or v == "yes"
+        end
+
+        local function toList(v)
+            if type(v) == "table" then return v end
+            local t = {}
+            if v == nil then return t end
+            for piece in tostring(v):gmatch("[^,]+") do
+                local trimmed = mw.text.trim(piece)
+                if trimmed ~= "" then t[#t + 1] = trimmed end
+            end
+
+            return t
+        end
+
+        local function coerce(args)
+            local r = {}
+            for k, v in pairs(args) do
+                if NUMBER_FIELDS[k] then
+                    r[k] = tonumber(v) or 0
+                elseif BOOLEAN_FIELDS[k] then
+                    r[k] = toBoolean(v)
+                elseif LIST_FIELDS[k] then
+                    r[k] = toList(v)
+                elseif v ~= nil then
+                    r[k] = tostring(v)
+                end
+            end
+            if r.liquid_id and not r.page then
+                r.page = "Liquid:" .. r.liquid_id
+            end
+
+            return r
+        end
+
+        local function putRow(r)
+            bucket("item").put(r)
+        end
+
+        function p.putAll(frame)
+            local data = mw.loadData("Module:Liquid/data")
+            for _, row in ipairs(data) do
+                if row.liquid_id and not row.page then row.page = "Liquid:" .. row.liquid_id end
+                putRow(row)
+            end
+
+            return string.format("Stored %d liquids into Bucket.", #data)
+        end
+
+        function p.fromTemplate(frame)
+            local parent = frame:getParent()
+            local r = coerce(parent.args)
+            putRow(r)
+
+            return p.renderInfobox(r, parent)
+        end
+
+        function p.renderInfobox(r, frame)
+            local lang = Locale.resolveLang(frame)
+            local liquid = Locale.getItem(r.liquid_id, lang)
+            local title = liquid and liquid.name or r.liquid_id
+
+            return string.format(
+                '{| class="wikitable infobox" style="float:right"\n|+ %s\n%s\n|}',
+                title)
+        end
+
+        return p
+        """;
+
+    public const string TriggerItemPage =
         """
         This page stores all item data into [[Extension:Bucket|Bucket]] in a single batch.
         It is generated automatically; do not edit by hand.
 
         {{#invoke:ItemData|putAll}}
+        """;
+
+    public const string TriggerLiquidPage =
+        """
+        This page stores all liquid data into [[Extension:Bucket|Bucket]] in a single batch.
+        It is generated automatically; do not edit by hand.
+
+        {{#invoke:LiquidData|putAll}}
         """;
 }

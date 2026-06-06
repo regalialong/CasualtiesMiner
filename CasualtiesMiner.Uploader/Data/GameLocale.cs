@@ -9,12 +9,12 @@ public sealed class GameLocale
     public IReadOnlyDictionary<string, string> Main { get; init; } = new Dictionary<string, string>();
     public IReadOnlyDictionary<string, string> Other { get; init; } = new Dictionary<string, string>();
 
-    public string GetItemName(string id)
+    public string GetObjectName(string id)
     {
         return Main.TryGetValue(id, out var name) && !string.IsNullOrWhiteSpace(name) ? name : id;
     }
 
-    public string GetItemDescription(string id)
+    public string GetObjectDescription(string id)
     {
         return Main.TryGetValue(id + "dsc", out var description) ? description : string.Empty;
     }

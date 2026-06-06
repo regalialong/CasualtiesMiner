@@ -44,42 +44,33 @@ public static class LocaleWikiGenerator
         return $"Module:Locale/{langCode}/{suffix}";
     }
 
-    public static string BuildItemsModule(GameLocale locale, IReadOnlyCollection<string> itemIds)
+    public static string BuildObjectsLocaleModule(GameLocale locale, IReadOnlyCollection<string> liquidIds, string type)
     {
         var sb = new StringBuilder();
         sb.AppendLine(GeneratedHeader);
         sb.AppendLine("return {");
 
-        foreach (var id in itemIds.OrderBy(x => x, StringComparer.Ordinal))
+        foreach (var id in liquidIds.OrderBy(x => x, StringComparer.Ordinal))
         {
-            var name = locale.GetItemName(id);
-            var description = locale.GetItemDescription(id);
+            string name = string.Empty;
+            string description = string.Empty;
+
+            if (type == "main")
+            {
+                name = locale.GetObjectName(id);
+                description = locale.GetObjectDescription(id);
+            }
+            if (type == "other")
+            {
+                name = locale.GetOther(id, $"{id}:TEMP_SMTH_IS_WRONG");
+                description = locale.GetOther(id, $"{id}:TEMP_SMTH_IS_WRONG");
+            }
 
             sb.Append("  [").Append(LuaFormat.String(id)).Append("] = { ");
             sb.Append("name = ").Append(LuaFormat.String(name)).Append(", ");
             sb.Append("description = ").Append(LuaFormat.String(description));
             sb.AppendLine(" },");
-        }
 
-        sb.AppendLine("}");
-        return sb.ToString();
-    }
-
-    public static string BuildLiquidsModule(GameLocale locale, IReadOnlyCollection<string> itemIds)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine(GeneratedHeader);
-        sb.AppendLine("return {");
-
-        foreach (var id in itemIds.OrderBy(x => x, StringComparer.Ordinal))
-        {
-            var name = locale.GetItemName(id);
-            var description = locale.GetItemDescription(id);
-
-            sb.Append("  [").Append(LuaFormat.String(id)).Append("] = { ");
-            sb.Append("name = ").Append(LuaFormat.String(name)).Append(", ");
-            sb.Append("description = ").Append(LuaFormat.String(description));
-            sb.AppendLine(" },");
         }
 
         sb.AppendLine("}");
