@@ -708,6 +708,31 @@ public static class WikiContent
         function p.infobox(frame)
             local args = getArgs(frame)
 
+            local liquidId = args.liquid_id or args[1] or args["1"]
+            liquidId = liquidId and mw.text.trim(tostring(liquidId)) or ""
+            if liquidId == "" then
+                return "[[Category:Errors]]<strong>ItemBucket:</strong> missing liquid id."
+            end
+        
+            local row = p.fetch(liquidId)
+            if not row then
+                return "[[Category:Errors]]<strong>ItemBucket:</strong> no Bucket row for '" .. liquidId .. "'."
+            end
+
+            local lang = Locale.resolveLang(frame)
+            local localeItem = Locale.getItem(liquidId, lang)
+        
+            if DEBUG then 
+                mw.log("> lang")
+                mw.logObject(lang)
+                mw.log("> localeItem")
+                mw.logObject(localeItem)
+                mw.log("> args")
+                mw.logObject(args)
+                mw.log("> row")
+                mw.logObject(row)
+            end
+
             return frame:expandTemplate{ title = "Liquid Infobox", args = resArgs }
         end
         """;
