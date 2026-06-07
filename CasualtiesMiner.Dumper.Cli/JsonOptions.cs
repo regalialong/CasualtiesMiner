@@ -11,6 +11,7 @@ internal sealed class DumpedData
     public Recipe[] Recipes { get; set; } = [];
     public LiquidType[] Liquids { get; set; } = [];
     public BlockInfo[] Tiles { get; set; } = [];
+    public MoodleInfo[] Moodles { get; set; } = [];
 }
 
 internal static class DumperJsonOptions
@@ -70,6 +71,9 @@ internal static class DumperJsonOptions
 [JsonSerializable(typeof(BlockInfo))]
 [JsonSerializable(typeof(BlockInfo[]))]
 [JsonSerializable(typeof(List<BlockInfo>))]
+[JsonSerializable(typeof(MoodleInfo))]
+[JsonSerializable(typeof(MoodleInfo[]))]
+[JsonSerializable(typeof(List<MoodleInfo>))]
 internal partial class JsonContext : JsonSerializerContext
 {
 }

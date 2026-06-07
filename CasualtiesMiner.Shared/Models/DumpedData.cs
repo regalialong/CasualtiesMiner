@@ -6,4 +6,5 @@ public sealed class DumpedData
     public Recipe[] Recipes { get; set; } = [];
     public LiquidType[] Liquids { get; set; } = [];
     public BlockInfo[] Tiles { get; set; } = [];
+    public MoodleInfo[] Moodles { get; set; } = [];
 }
