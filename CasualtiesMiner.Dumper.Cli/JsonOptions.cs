@@ -8,7 +8,7 @@ namespace CasualtiesMiner.Dumper.Cli;
 internal sealed class DumpedData
 {
     public ItemInfo[] Items { get; set; } = [];
-    public RecipeInfo[] Recipes { get; set; } = [];
+    public Recipe[] Recipes { get; set; } = [];
     public LiquidType[] Liquids { get; set; } = [];
     public BlockInfo[] Tiles { get; set; } = [];
 }
@@ -64,9 +64,9 @@ internal static class DumperJsonOptions
 [JsonSerializable(typeof(RecipeItem[]))]
 [JsonSerializable(typeof(List<RecipeItem>))]
 [JsonSerializable(typeof(RecipeResult))]
-[JsonSerializable(typeof(RecipeInfo))]
-[JsonSerializable(typeof(RecipeInfo[]))]
-[JsonSerializable(typeof(List<RecipeInfo>))]
+[JsonSerializable(typeof(Recipe))]
+[JsonSerializable(typeof(Recipe[]))]
+[JsonSerializable(typeof(List<Recipe>))]
 [JsonSerializable(typeof(BlockInfo))]
 [JsonSerializable(typeof(BlockInfo[]))]
 [JsonSerializable(typeof(List<BlockInfo>))]

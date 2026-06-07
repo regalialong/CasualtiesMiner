@@ -63,7 +63,7 @@ public static class LocaleWikiGenerator
             if (type == "other")
             {
                 name = locale.GetOther(id, $"{id}:TEMP_SMTH_IS_WRONG");
-                description = locale.GetOther(id, $"{id}:TEMP_SMTH_IS_WRONG");
+                description = locale.GetOtherDesc(id, $"{id}:TEMP_SMTH_IS_WRONG");
             }
 
             sb.Append("  [").Append(LuaFormat.String(id)).Append("] = { ");

@@ -43,7 +43,7 @@ public class Program
         };
 
         ItemInfo[] items = [];
-        RecipeInfo[] recipes = [];
+        Recipe[] recipes = [];
         LiquidType[] liquids = [];
         BlockInfo[] tiles = [];
 

@@ -72,6 +72,22 @@ public static class WikiContent
             end
         end
 
+        ---Query item locale information in specified language.
+        ---@param liquidId string Item ID or display name. Case insensitive.
+        ---@param lang any Target language. For example: EN
+        ---@return table Item Item language table entry.
+        function p.getLiquid(liquidId, lang)
+            if not liquidId or liquidId == "" then return nil end
+            local tbl = loadTable(lang, "liquids")
+            local liquidIdLc = string.lower(liquidId)
+            local res = tbl[liquidId] or tbl[liquidIdLc]
+            if res ~= nil then return res end
+        
+            for id, liquid in pairs(tbl) do
+                if liquid.name == liquidId or string.lower(liquid.name) == liquidIdLc then return item end
+            end
+        end
+
         function p.ui(key, lang)
             local ui = loadTable(lang, "ui")
             return ui[key] or key
@@ -703,38 +719,128 @@ public static class WikiContent
     /// </summary>
     public const string LiquidBucketModule =
         """
-        -- =================================================
+        local Locale = require("Module:Locale")
+        local getArgs = require("Module:Arguments").getArgs
+        local yesNo = require("Module:Yesno")
 
+        local p = {}
+
+        local function firstRow(result)
+            return result and result[1] or nil
+        end
+
+        local function colorSwatch(hex)
+            if not hex or hex == "" then return nil end
+            hex = mw.text.trim(tostring(hex))
+            if not hex:match("^#") then
+                hex = "#" .. hex
+            end
+            if not hex:match("^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$") then return nil end
+            return string.format(
+                '<div class="liquid-infobox-swatch" style="display:block; width:100%%; max-width:280px; height:10em; min-height:140px; margin:0 auto; background-color:%s; border:2px solid rgba(128,128,128,0.45); border-radius:6px; box-sizing:border-box;"></div>',
+                hex
+            )
+        end
+
+        local function paramValue(v)
+            if v == nil then return "" end
+            if type(v) == "boolean" then
+                return yesNo(v) and "true" or "false"
+            end
+            if type(v) == "table" then
+                return table.concat(v, ", ")
+            end
+            return tostring(v)
+        end
+
+        function p.fetch(liquidId)
+            return firstRow(bucket("liquid")
+                .select("liquid_id", "color", "value_per_liter", "health_usable",
+                        "injectable", "locale_from_item", "injection_sickness", "qualities")
+                .where("liquid_id", liquidId)
+                .run())
+        end
+
+        -- =================================================
         function p.infobox(frame)
             local args = getArgs(frame)
 
             local liquidId = args.liquid_id or args[1] or args["1"]
             liquidId = liquidId and mw.text.trim(tostring(liquidId)) or ""
             if liquidId == "" then
-                return "[[Category:Errors]]<strong>ItemBucket:</strong> missing liquid id."
+                return "[[Category:Errors]]<strong>LiquidBucket:</strong> missing liquid id."
             end
         
             local row = p.fetch(liquidId)
             if not row then
-                return "[[Category:Errors]]<strong>ItemBucket:</strong> no Bucket row for '" .. liquidId .. "'."
+                return "[[Category:Errors]]<strong>LiquidBucket:</strong> no Bucket row for '" .. liquidId .. "'."
             end
 
             local lang = Locale.resolveLang(frame)
-            local localeItem = Locale.getItem(liquidId, lang)
+            local localeLiquid = Locale.getLiquid(liquidId, lang)
         
             if DEBUG then 
                 mw.log("> lang")
                 mw.logObject(lang)
-                mw.log("> localeItem")
-                mw.logObject(localeItem)
+                mw.log("> localeLiquid")
+                mw.logObject(localeLiquid)
                 mw.log("> args")
                 mw.logObject(args)
                 mw.log("> row")
                 mw.logObject(row)
             end
 
+            local resArgs = {
+                liquid_id = liquidId,
+                display_name = localeLiquid and localeLiquid.name or liquidId,
+                description = localeLiquid and localeLiquid.description or "",
+            }
+
+            for key, value in pairs(row) do
+                resArgs[key] = paramValue(value)
+            end
+
+            local hex = row.color and mw.text.trim(tostring(row.color)) or ""
+            hex = hex:gsub("^#", "")
+            if hex ~= "" then
+                resArgs.color_css = hex
+            end
+
             return frame:expandTemplate{ title = "Liquid Infobox", args = resArgs }
         end
+
+        -- Renders N infoboxes. For debugging purposes.
+        function p.n_infoboxes(frame)
+            local n = tonumber(frame.args.n) or 1
+            local from = tonumber(frame.args.from) or 1
+        
+            local parent = mw.html.create("div")
+                :css("display", "flex")
+                :css("flex-direction", "row")
+                :css("flex-wrap", "wrap")
+        
+            local queryRes = bucket("liquid")
+                .select("liquid_id")
+                .run()
+        
+            local total = #queryRes
+        
+            local count = 0
+            for _, obj in ipairs(queryRes) do
+                count = count + 1
+                if count >= from then
+                    local liquidId = obj.liquid_id
+                    frame.args[1] = liquidId
+                    parent:node(p.infobox(frame))
+                end
+        
+                if count == (from + n) then break end
+            end
+        
+            return "Displaying " .. from .. " to " .. count .. " of " .. total, parent
+        end
+
+        return p
         """;
 
     public const string RouterLiquidModule =
@@ -820,7 +926,7 @@ public static class WikiContent
 
         function p.renderInfobox(r, frame)
             local lang = Locale.resolveLang(frame)
-            local liquid = Locale.getItem(r.liquid_id, lang)
+            local liquid = Locale.getLiquid(r.liquid_id, lang)
             local title = liquid and liquid.name or r.liquid_id
 
             return string.format(

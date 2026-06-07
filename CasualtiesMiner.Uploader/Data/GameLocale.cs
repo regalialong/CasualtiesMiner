@@ -23,4 +23,9 @@ public sealed class GameLocale
     {
         return Other.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value) ? value : fallback;
     }
+
+    public string GetOtherDesc(string key, string fallback)
+    {
+        return Other.TryGetValue(key + "dsc", out var value) && !string.IsNullOrWhiteSpace(value) ? value : fallback;
+    }
 }

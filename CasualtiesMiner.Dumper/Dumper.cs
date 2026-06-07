@@ -136,9 +136,9 @@ public partial class Dumper
         return [.. itemList];
     }
 
-    public RecipeInfo[] DumpRecipes(CSharpDecompiler decompiler)
+    public Recipe[] DumpRecipes(CSharpDecompiler decompiler)
     {
-        var recipeList = new List<RecipeInfo>();
+        var recipeList = new List<Recipe>();
 
         var recipesType = _module.Types.FirstOrDefault(t => t.FullName == "Recipes");
         var recipeType = _module.Types.FirstOrDefault(t => t.FullName == "Recipe");
@@ -163,7 +163,7 @@ public partial class Dumper
             i = ParseObjectFields(decompiler, instructions, i + 1, ["Recipe"], recipeDict,
                 op => op == "System.Void System.Collections.Generic.List`1<Recipe>::Add(!0)");
 
-            var recipe = new RecipeInfo
+            var recipe = new Recipe
             {
                 specialKnown = GetValue<bool>(recipeDict, "specialKnown"),
                 INT = GetValue<int>(recipeDict, "INT"),
@@ -173,7 +173,7 @@ public partial class Dumper
                 result = GetValue<RecipeResult>(recipeDict, "result"),
                 // Not needed, always false
                 // hasMadeBefore = GetValue<bool>(recipeDict, "hasMadeBefore"),
-                category = GetValue<int>(recipeDict, "category"),
+                category = GetValue<RecipeCategory>(recipeDict, "category"),
                 isRepair = GetValue<bool>(recipeDict, "isRepair"),
                 index = GetValue<int>(recipeDict, "index")
             };
