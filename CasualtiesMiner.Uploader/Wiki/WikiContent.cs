@@ -14,6 +14,7 @@ public static class WikiContent
     public const string LiquidBucketModuleTitle = "Module:LiquidBucket";
     public const string ItemDataModuleTitle = "Module:Item/data";
     public const string LiquidDataModuleTitle = "Module:Liquid/data";
+    public const string MoodleDataModuleTitle = "Module:Moodle/data";
 
     public const string TriggerItemPageTitle = "Project:Items data";
     public const string TriggerLiquidPageTitle = "Project:Liquid data";

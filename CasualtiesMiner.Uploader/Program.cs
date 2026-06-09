@@ -27,10 +27,12 @@ public static class Program
 
         var itemRows = LoadItemRows(options);
         var liquidRows = LoadLiquidRows(options);
+        var moodleRows = LoadMoodleRows(options);
         var locales = await LoadLocalesAsync(options);
 
         Console.WriteLine($"Loaded {itemRows.Count} items from {options.DataPath}.");
         Console.WriteLine($"Loaded {liquidRows.Count} liquids from {options.DataPath}.");
+        Console.WriteLine($"Loaded {moodleRows.Count} moodles from {options.DataPath}.");
         Console.WriteLine($"Loaded {locales.Locales.Count} locale(s) (default: {locales.DefaultCode}).");
 
         using var client = new MediaWikiClient(options.ApiUrl, options.RequestDelay);
@@ -66,7 +68,7 @@ public static class Program
         if (mode is "bulk" or "all")
         {
             await UploadItemModulesAsync(client, options);
-            await UploadBulkAsync(client, itemRows, liquidRows, options);
+            await UploadBulkAsync(client, itemRows, liquidRows, moodleRows, options);
         }
 
         Console.WriteLine("Done.");
@@ -152,15 +154,23 @@ public static class Program
         var bucketLiquidModule = await client.EditAsync(
             WikiContent.LiquidBucketModuleTitle,
             WikiContent.LiquidBucketModule,
-            "Update ItemBucket reader",
+            "Update LiquidBucket reader",
             options.DryRun);
         Console.WriteLine($"  {WikiContent.LiquidBucketModuleTitle}: {bucketLiquidModule}");
+
+        var liquidInfobox = await client.EditAsync(
+            WikiContent.LiquidInfoboxTemplateTitle,
+            WikiContent.LiquidInfoboxTemplate,
+            "Update Liquid Infobox droplet image",
+            options.DryRun);
+        Console.WriteLine($"  {WikiContent.LiquidInfoboxTemplateTitle}: {liquidInfobox}");
     }
 
     private static async Task UploadBulkAsync(
         MediaWikiClient client,
         IReadOnlyList<ItemRow> itemRows,
         IReadOnlyList<LiquidRow> liquidRows,
+        IReadOnlyList<MoodleRow> moodleRows,
         CliOptions options)
     {
         Console.WriteLine("== Uploading bulk Bucket data ==");
@@ -196,6 +206,14 @@ public static class Program
             "Refresh Bucket liquid data",
             options.DryRun);
         Console.WriteLine($"  {WikiContent.TriggerLiquidPageTitle}: {liquidTrigger}");
+
+        Console.WriteLine("== Moodles ==");
+        var moodleData = await client.EditAsync(
+            WikiContent.MoodleDataModuleTitle,
+            WikiGenerator.BuildMoodleDataModule(moodleRows),
+            "Regenerate moodle data",
+            options.DryRun);
+        Console.WriteLine($"  {WikiContent.MoodleDataModuleTitle}: {moodleData}");
     }
 
     private static IReadOnlyList<ItemRow> LoadItemRows(CliOptions options)
@@ -217,6 +235,17 @@ public static class Program
             .Where(item => !string.IsNullOrWhiteSpace(item.localeName))
             .Select(LiquidRowMapper.Map)
             .OrderBy(row => row.LiquidId, StringComparer.Ordinal)
+            .ToList();
+    }
+
+    private static IReadOnlyList<MoodleRow> LoadMoodleRows(CliOptions options)
+    {
+        var moodles = DataJson.LoadMoodles(options.DataPath);
+
+        return moodles
+            .Where(m => !string.IsNullOrWhiteSpace(m.localeId))
+            .Select(MoodleRowMapper.Map)
+            .OrderBy(row => row.LocaleId, StringComparer.Ordinal)
             .ToList();
     }
 
@@ -246,7 +275,7 @@ public static class Program
             Modes:
               schemas    Upload Bucket table definitions (Bucket:* pages).
               locales    Upload Module:Locale and Module:Locale/<lang>/* from game JSON files.
-              bulk       Upload locales, ItemBucket, Module:Item/data, Module:Liquid/data, and refresh Bucket.
+              bulk       Upload locales, ItemBucket, Module:Item/data, Module:Liquid/data, Module:Moodle/data, and refresh Bucket.
               all        schemas, then bulk (locales + modules + Bucket data).
 
             Options:

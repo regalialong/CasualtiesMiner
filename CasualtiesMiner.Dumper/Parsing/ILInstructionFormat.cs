@@ -1,4 +1,4 @@
-﻿using Mono.Cecil.Cil;
+using Mono.Cecil.Cil;
 using Mono.Collections.Generic;
 
 namespace CasualtiesMiner.Dumper.Parsing;

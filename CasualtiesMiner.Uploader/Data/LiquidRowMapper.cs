@@ -16,8 +16,8 @@ public sealed class LiquidRowMapper
         {
             LiquidId = id,
             Color = item.color.ToHex(),
-            ValuePerLiter = item.valuePerLiter,
-            InjectionSickness = item.injectionSickness,
+            ValuePerLiter = (double)(decimal)item.valuePerLiter,
+            InjectionSickness = (double)(decimal)item.injectionSickness,
             HealthUsable = item.healthUsable,
             Injectable = item.injectable,
             LocaleFromItem = item.localeFromItem,

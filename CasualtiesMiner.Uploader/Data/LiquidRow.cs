@@ -15,8 +15,8 @@ public sealed record LiquidRow
 
     public required string Color { get; init; }
 
-    public required float ValuePerLiter { get; init; }
-    public required float InjectionSickness { get; init; }
+    public required double ValuePerLiter { get; init; }
+    public required double InjectionSickness { get; init; }
 
     public required bool HealthUsable { get; init; }
     public required bool Injectable { get; init; }

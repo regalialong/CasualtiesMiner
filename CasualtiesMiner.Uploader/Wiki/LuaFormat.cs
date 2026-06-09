@@ -18,4 +18,6 @@ internal static class LuaFormat
     public static string Int(int value) => value.ToString(CultureInfo.InvariantCulture);
 
     public static string Num(double value) => value.ToString("R", CultureInfo.InvariantCulture);
+
+    public static string TableKey(string key) => "[" + String(key) + "]";
 }

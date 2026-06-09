@@ -1,4 +1,4 @@
-﻿using CasualtiesMiner.Shared.Models;
+using CasualtiesMiner.Shared.Models;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -41,5 +41,15 @@ internal static class DataJson
 
         return itemsElement.Deserialize<LiquidType[]>(ReadOptions)
                ?? throw new InvalidOperationException("Could not parse liquids from data.json.");
+    }
+
+    internal static MoodleInfo[] LoadMoodles(string path)
+    {
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+
+        if (!document.RootElement.TryGetProperty("moodles", out var moodlesElement))
+            return [];
+
+        return moodlesElement.Deserialize<MoodleInfo[]>(ReadOptions) ?? [];
     }
 }
