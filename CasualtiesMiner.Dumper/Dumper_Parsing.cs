@@ -65,8 +65,8 @@ public sealed partial class Dumper
             {
                 "Boolean" => instructions[0].OpCode.Code == Code.Ldc_I4_1,
                 "Single" => Convert.ToSingle(instructions[0].Operand),
-                "Byte" => Convert.ToByte(ILBackwardParser.ParseInt(instructions[0])),
-                "Int32" => ILBackwardParser.ParseInt(instructions[0]),
+                "Byte" => Convert.ToByte(ILInstructionParser.ParseInt(instructions[0])),
+                "Int32" => ILInstructionParser.ParseInt(instructions[0]),
                 _ => WarnUnhandled(decompiler, type, instructions[0], fieldName)
             };
 
@@ -76,7 +76,7 @@ public sealed partial class Dumper
         return type.Name switch
         {
             "String" => instructions[0].Operand ?? instructions[0].OpCode.Name,
-            "Recognition" or "SleepQuality" => ILBackwardParser.ParseInt(instructions[0]),
+            "Recognition" or "SleepQuality" => ILInstructionParser.ParseInt(instructions[0]),
             _ => ParseComplexValue(decompiler, type, instructions, fieldName)
         };
     }
@@ -101,8 +101,10 @@ public sealed partial class Dumper
             case "RecipeResult":
                 {
                     var dict = new Dictionary<string, object?>();
-                    foreach (var (f, vals) in ExtractFields(decompiler, instructions))
+                    foreach (var (f, vals) in ExtractFields(instructions))
+                    {
                         dict[f.Name] = ParseFieldValue(decompiler, f.FieldType, vals, f.Name);
+                    }
 
                     return new RecipeResult
                     {
@@ -116,11 +118,13 @@ public sealed partial class Dumper
 
             case "RecipeItem":
                 {
-                    var minimumCondition = ILBackwardParser.ParseInt(instructions[0]);
+                    var minimumCondition = ILInstructionParser.ParseInt(instructions[0]);
 
                     var dict = new Dictionary<string, object?>();
-                    foreach (var (f, vals) in ExtractFields(decompiler, instructions))
+                    foreach (var (f, vals) in ExtractFields(instructions))
+                    {
                         dict[f.Name] = ParseFieldValue(decompiler, f.FieldType, vals, f.Name);
+                    }
 
                     return new RecipeItem
                     {
@@ -137,7 +141,7 @@ public sealed partial class Dumper
                 }
 
             case "Recipes/RecipeCategory":
-                return ILBackwardParser.ParseInt(instructions[0]);
+                return ILInstructionParser.ParseInt(instructions[0]);
 
             case "CraftingQuality":
                 {
@@ -169,16 +173,16 @@ public sealed partial class Dumper
                     switch (instructions.Count)
                     {
                         case 4:
-                            result.r = (byte)(ILBackwardParser.ParseInt(instructions[0]) * 255);
-                            result.g = (byte)(ILBackwardParser.ParseInt(instructions[1]) * 255);
-                            result.b = (byte)(ILBackwardParser.ParseInt(instructions[2]) * 255);
+                            result.r = (byte)(ILInstructionParser.ParseInt(instructions[0]) * 255);
+                            result.g = (byte)(ILInstructionParser.ParseInt(instructions[1]) * 255);
+                            result.b = (byte)(ILInstructionParser.ParseInt(instructions[2]) * 255);
                             result.a = 255;
                             break;
                         case 6:
-                            result.r = (byte)ILBackwardParser.ParseInt(instructions[0]);
-                            result.g = (byte)ILBackwardParser.ParseInt(instructions[1]);
-                            result.b = (byte)ILBackwardParser.ParseInt(instructions[2]);
-                            result.a = (byte)ILBackwardParser.ParseInt(instructions[3]);
+                            result.r = (byte)ILInstructionParser.ParseInt(instructions[0]);
+                            result.g = (byte)ILInstructionParser.ParseInt(instructions[1]);
+                            result.b = (byte)ILInstructionParser.ParseInt(instructions[2]);
+                            result.a = (byte)ILInstructionParser.ParseInt(instructions[3]);
                             break;
                     }
 
@@ -191,7 +195,10 @@ public sealed partial class Dumper
             case "LiquidType/OnHealthUse":
                 {
                     var pointerToDelegate = instructions.FirstOrDefault(p => p.OpCode.Code == Code.Ldftn);
-                    if (pointerToDelegate is null) return null;
+                    if (pointerToDelegate is null)
+                    {
+                        return null;
+                    }
 
                     var methodRef = (MethodReference)pointerToDelegate.Operand;
                     var methodDef = methodRef.Resolve();
@@ -210,7 +217,9 @@ public sealed partial class Dumper
         Console.WriteLine($"[WARNING] No parser for '{fieldName}' ({type.FullName})");
 
         foreach (var inst in instructions)
+        {
             Console.WriteLine($"  {inst}");
+        }
 
         return null;
     }
@@ -331,8 +340,7 @@ public sealed partial class Dumper
         return inst.Operand ?? inst.OpCode.Name;
     }
 
-    public static Dictionary<FieldDefinition, List<Instruction>> ExtractFields(CSharpDecompiler _,
-        List<Instruction> instructions)
+    public static Dictionary<FieldDefinition, List<Instruction>> ExtractFields(List<Instruction> instructions)
     {
         var fields = new Dictionary<FieldDefinition, List<Instruction>>();
 

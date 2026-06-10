@@ -1,25 +1,11 @@
-using Mono.Cecil;
+﻿using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Collections.Generic;
 
 namespace CasualtiesMiner.Dumper.Parsing;
 
-internal static class ILBackwardParser
+internal static class ILInstructionParser
 {
-    public static bool IsBoolLiteral(Instruction instruction, out bool value)
-    {
-        if (!IsLdcI4(instruction))
-        {
-            value = false;
-
-            return false;
-        }
-
-        value = ParseInt(instruction) != 0;
-
-        return true;
-    }
-
     public static bool IsLdcI4(Instruction instruction) =>
         instruction.OpCode.Code switch
         {
@@ -36,26 +22,6 @@ internal static class ILBackwardParser
                           or Code.Ldc_I4_S => true,
             _ => false
         };
-
-    public static int? TryParseSingleLiteralInt(IReadOnlyList<Instruction> block)
-    {
-        if (block.Count == 0)
-        {
-            return null;
-        }
-
-        if (block.Count == 1 && IsLdcI4(block[0]))
-        {
-            return ParseInt(block[0]);
-        }
-
-        if (block.All(i => i.OpCode.Code == Code.Nop))
-        {
-            return 0;
-        }
-
-        return null;
-    }
 
     public static void ConsumeOne(Collection<Instruction> instructions, ref int index)
     {
@@ -98,8 +64,32 @@ internal static class ILBackwardParser
             case Code.Ldloc_3:
             case Code.Ldloc:
             case Code.Ldloc_S:
+            case Code.Ldloca:
+            case Code.Ldloca_S:
             case Code.Ldsfld:
             case Code.Ldfld:
+                return;
+
+            case Code.Stloc_0:
+            case Code.Stloc_1:
+            case Code.Stloc_2:
+            case Code.Stloc_3:
+            case Code.Stloc:
+            case Code.Stloc_S:
+                ConsumeOne(instructions, ref index);
+                return;
+
+            case Code.Box:
+                ConsumeOne(instructions, ref index);
+                return;
+
+            case Code.Ldelem_Ref:
+            case Code.Ldelem_Any:
+            case Code.Ldelem_I:
+            case Code.Ldelem_I4:
+            case Code.Ldelem_R4:
+                ConsumeOne(instructions, ref index);
+                ConsumeOne(instructions, ref index);
                 return;
 
             case Code.Call:

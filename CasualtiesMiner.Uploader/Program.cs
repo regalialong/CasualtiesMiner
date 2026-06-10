@@ -157,13 +157,6 @@ public static class Program
             "Update LiquidBucket reader",
             options.DryRun);
         Console.WriteLine($"  {WikiContent.LiquidBucketModuleTitle}: {bucketLiquidModule}");
-
-        var liquidInfobox = await client.EditAsync(
-            WikiContent.LiquidInfoboxTemplateTitle,
-            WikiContent.LiquidInfoboxTemplate,
-            "Update Liquid Infobox droplet image",
-            options.DryRun);
-        Console.WriteLine($"  {WikiContent.LiquidInfoboxTemplateTitle}: {liquidInfobox}");
     }
 
     private static async Task UploadBulkAsync(

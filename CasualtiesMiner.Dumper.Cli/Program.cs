@@ -1,4 +1,4 @@
-﻿using CasualtiesMiner.Shared.Models;
+using CasualtiesMiner.Shared.Models;
 using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.CSharp;
 using Mono.Cecil;
@@ -10,18 +10,17 @@ public class Program
 {
     public static async Task Main(string[] args)
     {
-        var fileName = args.Length > 0 ? args[0] : "Assembly-CSharp.dll";
-        if (!File.Exists(fileName))
+        var assemblyPath = args.Length > 0 ? args[0] : "Assembly-CSharp.dll";
+        if (!File.Exists(assemblyPath))
         {
-            Console.WriteLine($"Can't find {fileName}.");
-
+            Console.WriteLine($"Can't find {assemblyPath}.");
             return;
         }
 
         ModuleDefinition? module;
         try
         {
-            module = ModuleDefinition.ReadModule(fileName);
+            module = ModuleDefinition.ReadModule(assemblyPath);
         }
         catch (Exception ex)
         {
@@ -36,6 +35,7 @@ public class Program
         }
 
         var dumper = new Dumper(module);
+
         var decompilerSettings = new DecompilerSettings
         {
             ThrowOnAssemblyResolveErrors = false,
@@ -49,10 +49,10 @@ public class Program
         MoodleInfo[] moodles = [];
 
         await Task.WhenAll(
-            Task.Run(() => items = dumper.DumpItems(new CSharpDecompiler(fileName, decompilerSettings))),
-            Task.Run(() => recipes = dumper.DumpRecipes(new CSharpDecompiler(fileName, decompilerSettings))),
-            Task.Run(() => liquids = dumper.DumpLiquids(new CSharpDecompiler(fileName, decompilerSettings))),
-            Task.Run(() => tiles = dumper.DumpTiles(new CSharpDecompiler(fileName, decompilerSettings))),
+            Task.Run(() => items = dumper.DumpItems(new CSharpDecompiler(assemblyPath, decompilerSettings))),
+            Task.Run(() => recipes = dumper.DumpRecipes(new CSharpDecompiler(assemblyPath, decompilerSettings))),
+            Task.Run(() => liquids = dumper.DumpLiquids(new CSharpDecompiler(assemblyPath, decompilerSettings))),
+            Task.Run(() => tiles = dumper.DumpTiles(new CSharpDecompiler(assemblyPath, decompilerSettings))),
             Task.Run(() => moodles = dumper.DumpMoodles())
         );
 

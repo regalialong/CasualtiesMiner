@@ -1,4 +1,4 @@
-﻿using CasualtiesMiner.Dumper.Parsing;
+using CasualtiesMiner.Dumper.Parsing;
 using CasualtiesMiner.Shared.Models;
 
 namespace CasualtiesMiner.Dumper;
@@ -15,35 +15,23 @@ public sealed partial class Dumper
         if (addAllMoodles?.Body is null)
             return [];
 
+        //ILInstructionFormat.WriteMethodIl(Console.Out, addAllMoodles, markAddMoodleCalls: true);
+        //Console.WriteLine();
+
         var localeType = _module.Types.FirstOrDefault(t => t.FullName == "Locale");
         var getMoodle = localeType?.Methods.FirstOrDefault(m => m is { Name: "GetMoodle", Parameters.Count: 1 });
         if (getMoodle is null)
             return [];
 
-        var moodles = new List<MoodleInfo>();
-        var instructions = addAllMoodles.Body.Instructions;
-
-        for (var i = 0; i < instructions.Count; i++)
+        var addMoodle = moodleManager.Methods.FirstOrDefault(m => m.Name == "AddMoodle");
+        if (addMoodle is null)
         {
-            if (!MoodleCallParser.IsAddMoodleCall(instructions[i], out var method))
-            {
-                continue;
-            }
-
-            if (method!.Parameters.Count != 6)
-            {
-                Console.WriteLine($"[WARNING] Parameters for AddModdle was bigger than 6, skipping...");
-
-                continue;
-            }
-
-            var moodle = MoodleCallParser.Parse(instructions, i, getMoodle);
-
-            if (moodle is not null)
-            {
-                moodles.Add(moodle);
-            }
+            return [];
         }
+
+        var moodles = MoodleStackWalker.Walk(
+            addAllMoodles.Body.Instructions,
+            getMoodle);
 
         return [.. moodles.OrderBy(m => m.localeId, StringComparer.Ordinal)];
     }
