@@ -345,7 +345,7 @@ public sealed partial class Dumper
         return inst.Operand ?? inst.OpCode.Name;
     }
 
-    public static Dictionary<FieldDefinition, List<Instruction>> ExtractFields(List<Instruction> instructions)
+    private static Dictionary<FieldDefinition, List<Instruction>> ExtractFields(List<Instruction> instructions)
     {
         var fields = new Dictionary<FieldDefinition, List<Instruction>>();
 

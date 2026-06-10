@@ -72,6 +72,6 @@ public class Program
         };
 
         await File.WriteAllTextAsync("data.json",
-            JsonSerializer.Serialize(dumpedData, DumperJsonOptions.CamelCaseOptions));
+            JsonSerializer.Serialize(dumpedData, DumperJsonOptions.Default));
     }
 }

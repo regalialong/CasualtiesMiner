@@ -120,13 +120,13 @@ internal static class MoodleCallParser
             chippedOnly = ILInstructionParser.ParseInt(instructions[cursor]) != 0;
         }
 
-        //Console.WriteLine($"icon: {icon}");
-        //Console.WriteLine($"localeId: {localeId}");
-        //Console.WriteLine($"descLocaleKey: {descLocaleKey}");
-        //Console.WriteLine($"preconditionForMoodle: {(string.IsNullOrEmpty(string.Join(", ", guards)) ? "none" : string.Join(", ", guards))}");
-        //Console.WriteLine($"intensity: {intensityExpr ?? intensity.ToString()}");
-        //Console.WriteLine($"critical: {criticalExpr ?? critical.ToString()}");
-        //Console.WriteLine($"chippedOnly: {chippedOnly}\n");
+        Console.WriteLine($"icon: {icon}");
+        Console.WriteLine($"localeId: {localeId}");
+        Console.WriteLine($"descLocaleKey: {descLocaleKey}");
+        Console.WriteLine($"preconditionForMoodle: {(string.IsNullOrEmpty(string.Join(", ", guards)) ? "none" : string.Join(", ", guards))}");
+        Console.WriteLine($"intensity: {intensityExpr ?? intensity.ToString()}");
+        Console.WriteLine($"critical: {criticalExpr ?? critical.ToString()}");
+        Console.WriteLine($"chippedOnly: {chippedOnly}\n");
 
         return new MoodleInfo
         {

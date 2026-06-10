@@ -15,8 +15,8 @@ public sealed partial class Dumper
         if (addAllMoodles?.Body is null)
             return [];
 
-        //ILInstructionFormat.WriteMethodIl(Console.Out, addAllMoodles, markAddMoodleCalls: true);
-        //Console.WriteLine();
+        ILInstructionFormat.WriteMethodIl(Console.Out, addAllMoodles, markAddMoodleCalls: true);
+        Console.WriteLine();
 
         var localeType = _module.Types.FirstOrDefault(t => t.FullName == "Locale");
         var getMoodle = localeType?.Methods.FirstOrDefault(m => m is { Name: "GetMoodle", Parameters.Count: 1 });
