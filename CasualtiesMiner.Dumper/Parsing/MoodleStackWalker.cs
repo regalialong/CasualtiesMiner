@@ -1,4 +1,4 @@
-using CasualtiesMiner.Shared.Models;
+﻿using CasualtiesMiner.Shared.Models;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Collections.Generic;
@@ -59,9 +59,8 @@ internal static class MoodleStackWalker
 
             var frameLength = i - frameStartIndex + 1;
             var frame = Slice(instructions, frameStartIndex, frameLength);
-            var callIndexInFrame = frame.Count - 1;
 
-            if (TryParseCallFrame(frame, callIndexInFrame, getMoodleMethod, out var moodle))
+            if (TryParseCallFrame(frame, getMoodleMethod, out var moodle))
             {
                 moodles.Add(moodle);
             }
@@ -79,7 +78,6 @@ internal static class MoodleStackWalker
 
     private static bool TryParseCallFrame(
         Collection<Instruction> frame,
-        int callIndexInFrame,
         MethodReference getMoodleMethod,
         out MoodleInfo moodle)
     {

@@ -23,6 +23,37 @@ internal static class ILInstructionParser
             _ => false
         };
 
+    public static int ParseInt(Instruction instruction) =>
+        instruction.OpCode.Code switch
+        {
+            Code.Ldc_I4_0 => 0,
+            Code.Ldc_I4_1 => 1,
+            Code.Ldc_I4_2 => 2,
+            Code.Ldc_I4_3 => 3,
+            Code.Ldc_I4_4 => 4,
+            Code.Ldc_I4_5 => 5,
+            Code.Ldc_I4_6 => 6,
+            Code.Ldc_I4_7 => 7,
+            Code.Ldc_I4_8 => 8,
+            Code.Ldc_I4_M1 => -1,
+            _ => instruction.Operand is int value ? value : Convert.ToInt32(instruction.Operand)
+        };
+
+    private static void ConsumeCallArguments(Collection<Instruction> instructions, ref int index, MethodReference method)
+    {
+        var argCount = method.Parameters.Count;
+
+        if (method.HasThis)
+        {
+            argCount++;
+        }
+
+        for (var i = 0; i < argCount; i++)
+        {
+            ConsumeOne(instructions, ref index);
+        }
+    }
+
     public static void ConsumeOne(Collection<Instruction> instructions, ref int index)
     {
         if (index < 0)
@@ -136,35 +167,4 @@ internal static class ILInstructionParser
                 return;
         }
     }
-
-    private static void ConsumeCallArguments(Collection<Instruction> instructions, ref int index, MethodReference method)
-    {
-        var argCount = method.Parameters.Count;
-
-        if (method.HasThis)
-        {
-            argCount++;
-        }
-
-        for (var i = 0; i < argCount; i++)
-        {
-            ConsumeOne(instructions, ref index);
-        }
-    }
-
-    public static int ParseInt(Instruction instruction) =>
-        instruction.OpCode.Code switch
-        {
-            Code.Ldc_I4_0 => 0,
-            Code.Ldc_I4_1 => 1,
-            Code.Ldc_I4_2 => 2,
-            Code.Ldc_I4_3 => 3,
-            Code.Ldc_I4_4 => 4,
-            Code.Ldc_I4_5 => 5,
-            Code.Ldc_I4_6 => 6,
-            Code.Ldc_I4_7 => 7,
-            Code.Ldc_I4_8 => 8,
-            Code.Ldc_I4_M1 => -1,
-            _ => instruction.Operand is int value ? value : Convert.ToInt32(instruction.Operand)
-        };
 }

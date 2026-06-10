@@ -1,4 +1,5 @@
 ﻿using CasualtiesMiner.Shared.Models;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
@@ -29,7 +30,8 @@ internal static class DumperJsonOptions
             IncludeFields = true,
             WriteIndented = true,
             DefaultIgnoreCondition = JsonIgnoreCondition.Never,
-            PropertyNamingPolicy = namingPolicy
+            PropertyNamingPolicy = namingPolicy,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
         };
     }
 }
@@ -39,41 +41,9 @@ internal static class DumperJsonOptions
     IncludeFields = true,
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(DumpedData))]
-[JsonSerializable(typeof(bool))]
-[JsonSerializable(typeof(byte))]
-[JsonSerializable(typeof(int))]
-[JsonSerializable(typeof(float))]
-[JsonSerializable(typeof(double))]
-[JsonSerializable(typeof(string))]
-[JsonSerializable(typeof(string[]))]
-[JsonSerializable(typeof(CraftingQuality))]
-[JsonSerializable(typeof(CraftingQuality[]))]
-[JsonSerializable(typeof(List<CraftingQuality>))]
 [JsonSerializable(typeof(ItemInfo))]
-[JsonSerializable(typeof(ItemInfo[]))]
-[JsonSerializable(typeof(List<ItemInfo>))]
 [JsonSerializable(typeof(LiquidItemInfo))]
 [JsonSerializable(typeof(BatteryInfo))]
-[JsonSerializable(typeof(LiquidStack))]
-[JsonSerializable(typeof(LiquidStack[]))]
-[JsonSerializable(typeof(List<LiquidStack>))]
-[JsonSerializable(typeof(Color))]
-[JsonSerializable(typeof(LiquidType))]
-[JsonSerializable(typeof(LiquidType[]))]
-[JsonSerializable(typeof(List<LiquidType>))]
-[JsonSerializable(typeof(RecipeItem))]
-[JsonSerializable(typeof(RecipeItem[]))]
-[JsonSerializable(typeof(List<RecipeItem>))]
-[JsonSerializable(typeof(RecipeResult))]
-[JsonSerializable(typeof(Recipe))]
-[JsonSerializable(typeof(Recipe[]))]
-[JsonSerializable(typeof(List<Recipe>))]
-[JsonSerializable(typeof(BlockInfo))]
-[JsonSerializable(typeof(BlockInfo[]))]
-[JsonSerializable(typeof(List<BlockInfo>))]
-[JsonSerializable(typeof(MoodleInfo))]
-[JsonSerializable(typeof(MoodleInfo[]))]
-[JsonSerializable(typeof(List<MoodleInfo>))]
 internal partial class JsonContext : JsonSerializerContext
 {
 }

@@ -120,13 +120,13 @@ internal static class MoodleCallParser
             chippedOnly = ILInstructionParser.ParseInt(instructions[cursor]) != 0;
         }
 
-        Console.WriteLine($"icon: {icon}");
-        Console.WriteLine($"localeId: {localeId}");
-        Console.WriteLine($"descLocaleKey: {descLocaleKey}");
-        Console.WriteLine($"preconditionForMoodle: {(string.IsNullOrEmpty(string.Join(", ", guards)) ? "none" : string.Join(", ", guards))}");
-        Console.WriteLine($"intensity: {intensityExpr ?? intensity.ToString()}");
-        Console.WriteLine($"critical: {criticalExpr ?? critical.ToString()}");
-        Console.WriteLine($"chippedOnly: {chippedOnly}\n");
+        //Console.WriteLine($"icon: {icon}");
+        //Console.WriteLine($"localeId: {localeId}");
+        //Console.WriteLine($"descLocaleKey: {descLocaleKey}");
+        //Console.WriteLine($"preconditionForMoodle: {(string.IsNullOrEmpty(string.Join(", ", guards)) ? "none" : string.Join(", ", guards))}");
+        //Console.WriteLine($"intensity: {intensityExpr ?? intensity.ToString()}");
+        //Console.WriteLine($"critical: {criticalExpr ?? critical.ToString()}");
+        //Console.WriteLine($"chippedOnly: {chippedOnly}\n");
 
         return new MoodleInfo
         {
@@ -215,11 +215,6 @@ internal static class MoodleCallParser
         return idx + 1;
     }
 
-    private static bool IsCriticalExprStart(Collection<Instruction> instructions, int cursor) =>
-        cursor + 1 < instructions.Count
-        && instructions[cursor].OpCode.Code == Code.Ldarg_0
-        && instructions[cursor + 1].OpCode.Code == Code.Ldfld;
-
     private static bool TryParseBoolArg(
         Collection<Instruction> instructions,
         int startIndex,
@@ -229,11 +224,11 @@ internal static class MoodleCallParser
     {
         value = false;
         expression = null;
-        endExclusive = startIndex;
 
         if (TryParseFieldCompareBool(instructions, startIndex, out var compareExpr, out endExclusive))
         {
             expression = compareExpr;
+
             return true;
         }
 
@@ -241,6 +236,7 @@ internal static class MoodleCallParser
         {
             value = ILInstructionParser.ParseInt(instructions[startIndex]) != 0;
             endExclusive = startIndex + 1;
+
             return true;
         }
 
@@ -291,6 +287,7 @@ internal static class MoodleCallParser
 
         expression = $"{path} {op} {literal}";
         endExclusive = compareIndex + 1;
+
         return true;
     }
 
@@ -396,6 +393,7 @@ internal static class MoodleCallParser
 
         expression = "";
         endExclusive = startIndex;
+
         return false;
     }
 
@@ -466,6 +464,7 @@ internal static class MoodleCallParser
 
         expression = $"({condition}) ? {WrapNested(whenTrue)} : {WrapNested(whenFalse)}";
         endExclusive = mergeIndex;
+
         return true;
     }
 
@@ -519,6 +518,7 @@ internal static class MoodleCallParser
         }
 
         expression = $"{path} {op} {literal}";
+
         return true;
     }
 
@@ -559,6 +559,7 @@ internal static class MoodleCallParser
 
         path = string.Join(".", parts);
         afterChain = ins;
+
         return true;
     }
 
@@ -637,6 +638,7 @@ internal static class MoodleCallParser
         }
 
         expression = $"{FormatLocalName(start)} {op} {literal}";
+
         return true;
     }
 
@@ -653,7 +655,7 @@ internal static class MoodleCallParser
 
     private static int FindAddMoodleArgsStartIndex(Collection<Instruction> instructions, int callIndex)
     {
-        // receiver is the last ldarg.0 before call whose next insn starts loading args
+        // receiver is the last ldarg.0 before call whose next when starts loading args
         // (not ldarg.0 → ldfld, which is a guard or nested field read).
         for (var i = callIndex - 1; i >= 0; i--)
         {
@@ -690,6 +692,11 @@ internal static class MoodleCallParser
 
         return -1;
     }
+
+    private static bool IsCriticalExprStart(Collection<Instruction> instructions, int cursor) =>
+        cursor + 1 < instructions.Count
+            && instructions[cursor].OpCode.Code == Code.Ldarg_0
+            && instructions[cursor + 1].OpCode.Code == Code.Ldfld;
 
     private static bool IsLocalLoad(Instruction instruction) =>
         instruction.OpCode.Code switch

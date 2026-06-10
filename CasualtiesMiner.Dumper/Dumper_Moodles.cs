@@ -1,4 +1,4 @@
-using CasualtiesMiner.Dumper.Parsing;
+﻿using CasualtiesMiner.Dumper.Parsing;
 using CasualtiesMiner.Shared.Models;
 
 namespace CasualtiesMiner.Dumper;
