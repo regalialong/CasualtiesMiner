@@ -25,9 +25,14 @@ public sealed partial class Dumper
             var inst = instructions[i];
 
             if (inst.OpCode.Code == Code.Callvirt && isStopCall(inst.Operand?.ToString() ?? ""))
+            {
                 return i;
+            }
 
-            if (inst.OpCode.Code != Code.Dup) continue;
+            if (inst.OpCode.Code != Code.Dup)
+            {
+                continue;
+            }
 
             var valueOpcodes = new List<Instruction>();
 
@@ -67,7 +72,7 @@ public sealed partial class Dumper
                 "Single" => Convert.ToSingle(instructions[0].Operand),
                 "Byte" => Convert.ToByte(ILInstructionParser.ParseInt(instructions[0])),
                 "Int32" => ILInstructionParser.ParseInt(instructions[0]),
-                _ => WarnUnhandled(decompiler, type, instructions[0], fieldName)
+                _ => WarnUnhandled(type, instructions[0], fieldName)
             };
 
         if (type.IsArray && type is ArrayType { ElementType.FullName: "System.String" })
@@ -332,7 +337,7 @@ public sealed partial class Dumper
         };
     }
 
-    private static object WarnUnhandled(CSharpDecompiler _, TypeReference type, Instruction inst,
+    private static object WarnUnhandled(TypeReference type, Instruction inst,
         string fieldName)
     {
         Console.WriteLine($"[WARNING] Unhandled primitive type: {type.Name} for field {fieldName}");

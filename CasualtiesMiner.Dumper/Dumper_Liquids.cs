@@ -29,8 +29,14 @@ public sealed partial class Dumper
 
         for (var i = 0; i < instructions.Count - 1; i++)
         {
-            if (instructions[i].OpCode.Code != Code.Ldstr) continue;
-            if (instructions[i + 1].OpCode.Code != Code.Newobj || instructions[i + 1].Operand != liquidCtor) continue;
+            if (instructions[i].OpCode.Code != Code.Ldstr)
+            {
+                continue;
+            }
+            if (instructions[i + 1].OpCode.Code != Code.Newobj || instructions[i + 1].Operand != liquidCtor)
+            {
+                continue;
+            }
 
             var key = (string)instructions[i].Operand;
             var entry = new Dictionary<string, object?> { ["name"] = key };

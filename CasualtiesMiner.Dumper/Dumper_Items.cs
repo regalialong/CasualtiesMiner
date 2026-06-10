@@ -1,4 +1,5 @@
-﻿using CasualtiesMiner.Shared.Models;
+﻿using CasualtiesMiner.Dumper.Parsing;
+using CasualtiesMiner.Shared.Models;
 using ICSharpCode.Decompiler.CSharp;
 using Mono.Cecil.Cil;
 
@@ -27,6 +28,9 @@ public sealed partial class Dumper
         if (setupMethod is null || globalField is null)
             return [];
 
+        ILInstructionFormat.WriteMethodIl(Console.Out, setupMethod, markAddMoodleCalls: true);
+        Console.WriteLine();
+
         var itemInfoCtor = itemInfoType.Methods.First(m => m.IsConstructor);
         var liquidItemInfoCtor = liquidItemInfo.Methods.FirstOrDefault(m => m.IsConstructor);
         var batteryInfoCtor = batteryInfo.Methods.FirstOrDefault(m => m.IsConstructor);
@@ -35,21 +39,36 @@ public sealed partial class Dumper
 
         for (var i = 0; i < instructions.Count - 2; i++)
         {
-            if (instructions[i].OpCode.Code != Code.Ldsfld || instructions[i].Operand != globalField) continue;
-            if (instructions[i + 1].OpCode.Code != Code.Ldstr) continue;
+            if (instructions[i].OpCode.Code != Code.Ldsfld || instructions[i].Operand != globalField)
+            {
+                continue;
+            }
+            if (instructions[i + 1].OpCode.Code != Code.Ldstr)
+            {
+                continue;
+            }
 
             var isLiquid = liquidItemInfoCtor != null && instructions[i + 2].Operand == liquidItemInfoCtor;
             var isBattery = batteryInfoCtor != null && instructions[i + 2].Operand == batteryInfoCtor;
 
             if (instructions[i + 2].OpCode.Code != Code.Newobj ||
-                (instructions[i + 2].Operand != itemInfoCtor && !isLiquid && !isBattery)) continue;
+                (instructions[i + 2].Operand != itemInfoCtor && !isLiquid && !isBattery))
+            {
+                continue;
+            }
 
             var itemName = (string)instructions[i + 1].Operand;
             var itemDict = new Dictionary<string, object?>();
 
             string[] validTypes = ["ItemInfo"];
-            if (isLiquid) validTypes = ["ItemInfo", "LiquidItemInfo"];
-            if (isBattery) validTypes = ["ItemInfo", "BatteryInfo"];
+            if (isLiquid)
+            {
+                validTypes = ["ItemInfo", "LiquidItemInfo"];
+            }
+            if (isBattery)
+            {
+                validTypes = ["ItemInfo", "BatteryInfo"];
+            }
 
             i = ParseObjectFields(decompiler, instructions, i + 2, validTypes, itemDict, op =>
                 op is "System.Void System.Collections.Generic.Dictionary`2<System.String,ItemInfo>::Add(!0,!1)"

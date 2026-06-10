@@ -13,20 +13,32 @@ public sealed partial class Dumper
         var recipesType = _module.Types.FirstOrDefault(t => t.FullName == "Recipes");
         var recipeType = _module.Types.FirstOrDefault(t => t.FullName == "Recipe");
 
-        if (recipesType is null || recipeType is null) return [];
+        if (recipesType is null || recipeType is null)
+        {
+            return [];
+        }
 
         var setupMethod = recipesType.Methods.FirstOrDefault(m => m.Name == "SetUpRecipes");
         var globalField = recipesType.Fields.FirstOrDefault(m => m.Name == "recipes");
 
-        if (setupMethod is null || globalField is null) return [];
+        if (setupMethod is null || globalField is null)
+        {
+            return [];
+        }
 
         var recipeCtor = recipeType.Methods.First(m => m.IsConstructor);
         var instructions = setupMethod.Body.Instructions;
 
         for (var i = 0; i < instructions.Count - 1; i++)
         {
-            if (instructions[i].OpCode.Code != Code.Ldsfld || instructions[i].Operand != globalField) continue;
-            if (instructions[i + 1].OpCode.Code != Code.Newobj || instructions[i + 1].Operand != recipeCtor) continue;
+            if (instructions[i].OpCode.Code != Code.Ldsfld || instructions[i].Operand != globalField)
+            {
+                continue;
+            }
+            if (instructions[i + 1].OpCode.Code != Code.Newobj || instructions[i + 1].Operand != recipeCtor)
+            {
+                continue;
+            }
 
             var recipeDict = new Dictionary<string, object?>();
 
