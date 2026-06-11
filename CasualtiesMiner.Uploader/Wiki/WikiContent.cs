@@ -977,7 +977,12 @@ public static class WikiContent
     #region Moodles
 
     /// <summary>
-    /// Reads a row from Bucket + locale strings and renders a one-row moodle table.
+    /// Reads moodle rows from Bucket + locale strings and renders a wikitable.
+    /// <c>table</c> accepts multiple positional ids in one table; <c>singleRowTable</c> is an alias.
+    /// Per-row intensity: <c>hypotension3:2</c> or named <c>intensity2=2</c>; global <c>intensity=</c> is fallback.
+    /// Template:MoodleTable: {{MoodleTable|palpitations|hypotension3:2|pain1}}.
+    /// Optional: <c>collapse=1</c> (mw-collapsible), <c>collapsed=1</c> (start collapsed), <c>caption=…</c> (|+ row).
+    /// Icon stack + critical bounce/flash: classes in MediaWiki:Gadget-moodle.css (gadget "moodle").
     /// Keep in sync with the live wiki module.
     /// </summary>
     public const string MoodleBucketModule =
@@ -987,22 +992,160 @@ public static class WikiContent
 
         local p = {}
 
-        local function firstRow(result)
-            return result and result[1] or nil
+        local TABLE_COLUMNS = {
+            '! scope="col" style="width: 10%" | Moodle',
+            '! scope="col" style="width: 50%" | Description',
+            '! scope="col" style="width: 5%" | [[Unchipped mode|Unchipped]]',
+            '! scope="col" | Cause',
+        }
+
+        local function toBoolean(v)
+            if v == true then return true end
+            if v == false or v == nil then return false end
+
+            v = tostring(v):lower()
+
+            return v == "true" or v == "1" or v == "yes"
         end
 
-        local function tryLoadLocaleTable(lang, suffix)
-            local ok, tbl = pcall(mw.loadData, "Module:Locale/" .. lang .. "/" .. suffix)
-            if ok and type(tbl) == "table" then return tbl end
+        local function isCollapsible(args)
+            return toBoolean(args.collapse)
+                or toBoolean(args.collapsible)
+                or toBoolean(args.collapsed)
+        end
+
+        local function buildTableOpen(args)
+            local classes = { "wikitable" }
+            if isCollapsible(args) then
+                classes[#classes + 1] = "mw-collapsible"
+            end
+            if toBoolean(args.collapsed) then
+                classes[#classes + 1] = "mw-collapsed"
+            end
+            return '{| class="' .. table.concat(classes, " ") .. '"'
+        end
+
+        local function buildTableCaption(args)
+            local cap = args.caption
+            if cap ~= nil and tostring(cap) ~= "" then
+                return "|+ " .. tostring(cap)
+            end
+            return "|+"
+        end
+
+        local function resolveIntensity(entry, args)
+            local named = args["intensity" .. entry.index]
+            if named ~= nil and tostring(named) ~= "" then
+                return tostring(named)
+            end
+            if entry.intensity ~= nil and tostring(entry.intensity) ~= "" then
+                return tostring(entry.intensity)
+            end
+            if args.intensity ~= nil and tostring(args.intensity) ~= "" then
+                return tostring(args.intensity)
+            end
             return nil
         end
 
-        local function iconFile(row, id)
+        local function parseEntry(raw)
+            raw = mw.text.trim(tostring(raw))
+            if raw == "" then
+                return nil
+            end
+
+            local colon = raw:find(":", 1, true)
+            if not colon then
+                return { id = raw, intensity = nil }
+            end
+
+            local id = mw.text.trim(raw:sub(1, colon - 1))
+            local intensity = mw.text.trim(raw:sub(colon + 1))
+            if id == "" then
+                return nil
+            end
+
+            return {
+                id = id,
+                intensity = intensity ~= "" and intensity or nil,
+            }
+        end
+
+        local function collectEntries(args)
+            local entries = {}
+            for key, value in pairs(args) do
+                if type(key) == "number" and value ~= nil and value ~= "" then
+                    local parsed = parseEntry(value)
+                    if parsed then
+                        parsed.index = key
+                        entries[#entries + 1] = parsed
+                    end
+                end
+            end
+            table.sort(entries, function(a, b) return a.index < b.index end)
+            return entries
+        end
+
+        local MOOD_BACKGROUNDS = {
+            [0] = "MoodleMood1.png",
+            [1] = "MoodleMood2.png",
+            [2] = "MoodleMood3.png",
+            [3] = "MoodleMood4.png",
+            [4] = "MoodleMood5.png",
+            [5] = "MoodleMood6.png",
+            [6] = "MoodleMood7.png",
+            [7] = "MoodleMood8.png",
+        }
+
+        local function moodBackgroundFile(intensity)
+            local n = tonumber(intensity)
+            if n == nil then
+                return "MoodleMood1.png"
+            end
+            if n >= 8 then
+                return "MoodleMoodLast.png"
+            end
+            if n < 0 then
+                return "MoodleMood1.png"
+            end
+            return MOOD_BACKGROUNDS[n] or "MoodleMood1.png"
+        end
+
+        local function resolveIconFilename(row, id)
             local icon = row.icon or id or "Deceased"
             if not icon:find("%.") then
                 icon = "Moodle" .. mw.language.getContentLanguage():ucfirst(icon) .. ".png"
             end
-            return "[[File:" .. icon .. "|48x48px]]"
+            return icon
+        end
+
+        local function fileThumb(frame, filename)
+            return frame:preprocess("[[File:" .. filename .. "|48x48px]]")
+        end
+
+        local function iconFile(frame, row, id)
+            local bg = moodBackgroundFile(row.intensity)
+            local fg = resolveIconFilename(row, id)
+            local parts = {
+                '<div class="cu-moodle-icon-stack">',
+                '<div class="cu-moodle-bg">' .. fileThumb(frame, bg) .. "</div>",
+                '<div class="cu-moodle-fg">' .. fileThumb(frame, fg) .. "</div>",
+            }
+            if row.critical then
+                parts[#parts + 1] = '<div class="cu-moodle-flash-overlay" aria-hidden="true"></div>'
+            end
+            parts[#parts + 1] = "</div>"
+            return table.concat(parts, "")
+        end
+
+        local function moodleWidget(frame, row, id, nameHtml)
+            local widgetClass = "cu-moodle-widget"
+            if row.critical then
+                widgetClass = widgetClass .. " cu-moodle-widget--critical"
+            end
+            return '<div class="' .. widgetClass .. '">'
+                .. iconFile(frame, row, id)
+                .. nameHtml
+                .. "</div>"
         end
 
         local function unchippedCell(row)
@@ -1063,45 +1206,76 @@ public static class WikiContent
             return results[1]
         end
 
-        function p.singleRowTable(frame)
-            local args = getArgs(frame, { trim = true, removeBlanks = false })
-
-            local id = args[1] or args.id or args.locale_id
-            id = id and mw.text.trim(tostring(id)) or ""
-            if id == "" then
-                return '[[Category:MoodleRowError]]<strong>MoodleBucket:</strong> missing locale id.'
-            end
-
-            local row = p.fetch(id, args.intensity)
-            if not row then
-                return "[[Category:MoodleRowError]]<strong>MoodleBucket:</strong> no Bucket row for '" .. id .. "'."
-            end
-
-            local lang = Locale.resolveLang(frame)
-            local descKey = row.desc_locale_key or (id .. "dsc")
+        function p.renderDataRow(frame, row, id, lang)
             local moodle = Locale.getMoodle(id, lang)
+            if not moodle then
+                moodle = { name = id, description = "" }
+            end
 
             local isCritical = row.critical or (row.critical_expr and row.critical_expr ~= "")
-            local nameHtml = isCritical
-                and ('<span style="color:#FF0000;">' .. mw.text.nowiki(moodle.name) .. "</span>")
-                or mw.text.nowiki(moodle.name)
+            local nameClass = isCritical and "cu-moodle-name cu-moodle-name--critical" or "cu-moodle-name"
+            local nameHtml = '<span class="' .. nameClass .. '">' .. mw.text.nowiki(moodle.name) .. "</span>"
 
-            local html = {
-                '{| class="wikitable"',
-                "|+",
-                '! scope="col" style="width: 10%" | Moodle',
-                '! scope="col" style="width: 50%" | Description',
-                '! scope="col" style="width: 5%" | [[Unchipped mode|Unchipped]]',
-                '! scope="col" | Cause',
+            return {
                 "|-",
-                '! scope="row" | ' .. iconFile(row, id) .. "<br /> " .. nameHtml,
+                '! scope="row" | ' .. moodleWidget(frame, row, id, nameHtml),
                 "| <i>" .. mw.text.nowiki(moodle.description) .. "</i>",
                 '| style="text-align: center" | ' .. unchippedCell(row),
                 "| " .. formatCause(row),
-                "|}",
             }
+        end
 
+        function p.table(frame)
+            local args = getArgs(frame, { trim = true, removeBlanks = false })
+            local entries = collectEntries(args)
+
+            if #entries == 0 then
+                local fallback = args.id or args.locale_id
+                local parsed = fallback and parseEntry(fallback) or nil
+                if parsed then
+                    parsed.index = 1
+                    entries = { parsed }
+                end
+            end
+
+            if #entries == 0 then
+                return '[[Category:MoodleRowError]]<strong>MoodleBucket:</strong> missing locale id.'
+            end
+
+            local lang = Locale.resolveLang(frame)
+            local html = {}
+
+            html[#html + 1] = buildTableOpen(args)
+            html[#html + 1] = buildTableCaption(args)
+            for _, col in ipairs(TABLE_COLUMNS) do
+                html[#html + 1] = col
+            end
+
+            for _, entry in ipairs(entries) do
+                local intensity = resolveIntensity(entry, args)
+                local row = p.fetch(entry.id, intensity)
+                if not row then
+                    html[#html + 1] = "|-"
+                    local label = entry.id
+                    if intensity ~= nil and intensity ~= "" then
+                        label = label .. " (intensity " .. intensity .. ")"
+                    end
+                    html[#html + 1] = '| colspan="4" | [[Category:MoodleRowError]]<strong>MoodleBucket:</strong> no Bucket row for '
+                        .. mw.text.nowiki(label) .. "."
+                else
+                    local rowLines = p.renderDataRow(frame, row, entry.id, lang)
+                    for _, line in ipairs(rowLines) do
+                        html[#html + 1] = line
+                    end
+                end
+            end
+
+            html[#html + 1] = "|}"
             return table.concat(html, "\n")
+        end
+
+        function p.singleRowTable(frame)
+            return p.table(frame)
         end
 
         return p
