@@ -10,14 +10,21 @@ public static class WikiContent
 
     public const string RouterItemModuleTitle = "Module:ItemData";
     public const string RouterLiquidModuleTitle = "Module:LiquidData";
+    public const string RouterMoodleModuleTitle = "Module:MoodleData";
+
     public const string ItemBucketModuleTitle = "Module:ItemBucket";
     public const string LiquidBucketModuleTitle = "Module:LiquidBucket";
+    public const string MoodleBucketModuleTitle = "Module:MoodleBucket";
+
     public const string ItemDataModuleTitle = "Module:Item/data";
     public const string LiquidDataModuleTitle = "Module:Liquid/data";
     public const string MoodleDataModuleTitle = "Module:Moodle/data";
 
     public const string TriggerItemPageTitle = "Project:Items data";
     public const string TriggerLiquidPageTitle = "Project:Liquid data";
+    public const string TriggerMoodlePageTitle = "Project:Moodle data";
+
+    #region Locale
 
     /// <summary>
     /// Resolves localized item names, descriptions and UI labels at render time.
@@ -73,10 +80,10 @@ public static class WikiContent
             end
         end
 
-        ---Query item locale information in specified language.
-        ---@param liquidId string Item ID or display name. Case insensitive.
+        ---Query liquid locale information in specified language.
+        ---@param liquidId string Liquid ID or display name. Case insensitive.
         ---@param lang any Target language. For example: EN
-        ---@return table Item Item language table entry.
+        ---@return table Liquid language table entry.
         function p.getLiquid(liquidId, lang)
             if not liquidId or liquidId == "" then return nil end
             local tbl = loadTable(lang, "liquids")
@@ -86,6 +93,22 @@ public static class WikiContent
         
             for id, liquid in pairs(tbl) do
                 if liquid.name == liquidId or string.lower(liquid.name) == liquidIdLc then return item end
+            end
+        end
+
+        ---Query moodle locale information in specified language.
+        ---@param moodleId string Moodle ID. Case insensitive.
+        ---@param lang any Target language. For example: EN
+        ---@return table Moodle language table entry.
+        function p.getMoodle(moodleId, lang)
+            if not moodleId or moodleId == "" then return nil end
+            local tbl = loadTable(lang, "moodles")
+            local moodleIdLc = string.lower(moodleId)
+            local res = tbl[moodleId] or tbl[moodleIdLc]
+            if res ~= nil then return res end
+        
+            for id, moodle in pairs(tbl) do
+                if moodle.locale_id == moodleId or string.lower(moodle.locale_id) == moodleIdLc then return item end
             end
         end
 
@@ -119,6 +142,10 @@ public static class WikiContent
 
         return p
         """;
+
+    #endregion Locale
+
+    #region Items
 
     /// <summary>
     /// Reads a row from Bucket + locale strings, formats fields (weight, decay, rec, wear slots),
@@ -471,12 +498,15 @@ public static class WikiContent
                     function process (args)
                         -- column: Substance 
                         if args.column == 1 then
-                            local lookup = Locale.getItem(args.value, lang)
-                            if lookup and lookup.display_name then
-                                -- convert item ids to display names with links
-                                -- todo the link will need a fix once locales are introduced
-                                return "[["..lookup.display_name.."|" .. lookup.display_name .. "]]"
+                            local liquidId = args.value
+                            local lookup = Locale.getLiquid(liquidId, lang)
+                            local name = lookup and lookup.name or nil
+                            local page = "Liquid:" .. liquidId
+
+                            if name then
+                                return "[[" .. page .. "|" .. name .. "]]"
                             end
+                            return "[[" .. page .. "|" .. liquidId .. "]]"
                         -- column: Amount 
                         elseif args.column == 2 then
                             local valueNum = tonumber(args.value)
@@ -714,6 +744,10 @@ public static class WikiContent
         return p
         """;
 
+    #endregion Items
+
+    #region Liquids
+
     /// <summary>
     /// Reads a row from Bucket + locale strings, formats fields (weight, decay, rec, wear slots),
     /// and expands <c>Template:Item Infobox</c>. Keep in sync with the live wiki module.
@@ -938,6 +972,220 @@ public static class WikiContent
         return p
         """;
 
+    #endregion Items
+
+    #region Moodles
+
+    /// <summary>
+    /// Reads a row from Bucket + locale strings and renders a one-row moodle table.
+    /// Keep in sync with the live wiki module.
+    /// </summary>
+    public const string MoodleBucketModule =
+        """
+        local Locale = require("Module:Locale")
+        local getArgs = require("Module:Arguments").getArgs
+
+        local p = {}
+
+        local function firstRow(result)
+            return result and result[1] or nil
+        end
+
+        local function tryLoadLocaleTable(lang, suffix)
+            local ok, tbl = pcall(mw.loadData, "Module:Locale/" .. lang .. "/" .. suffix)
+            if ok and type(tbl) == "table" then return tbl end
+            return nil
+        end
+
+        local function iconFile(row, id)
+            local icon = row.icon or id or "Deceased"
+            if not icon:find("%.") then
+                icon = "Moodle" .. mw.language.getContentLanguage():ucfirst(icon) .. ".png"
+            end
+            return "[[File:" .. icon .. "|48x48px]]"
+        end
+
+        local function unchippedCell(row)
+            if row.chipped_only then
+                return "[[File:Icon_cross_red.png|8x8px]]"
+            end
+            return "[[File:Icon_checkmark_green.png|8x8px]]"
+        end
+
+        local function formatCause(row)
+            local parts = {}
+
+            local pre = row.precondition_for_moodle
+            if pre and pre ~= "" and pre:lower() ~= "none" then
+                parts[#parts + 1] = pre
+            end
+
+            if row.intensity_expr and row.intensity_expr ~= "" then
+                parts[#parts + 1] = row.intensity_expr
+            end
+
+            if row.critical_expr and row.critical_expr ~= "" then
+                parts[#parts + 1] = row.critical_expr
+            elseif row.critical then
+                parts[#parts + 1] = "critical"
+            end
+
+            if #parts == 0 then
+                return "—"
+            end
+            return table.concat(parts, "<br />")
+        end
+
+        function p.fetch(localeId, intensity)
+            local results = bucket("moodle")
+                .select(
+                    "locale_id", "icon", "desc_locale_key", "precondition_for_moodle",
+                    "intensity", "intensity_expr", "critical", "critical_expr", "chipped_only")
+                .where("locale_id", localeId)
+                .run()
+
+            if not results or #results == 0 then
+                return nil
+            end
+
+            if intensity ~= nil and intensity ~= "" then
+                local want = tonumber(intensity)
+                if want then
+                    for _, row in ipairs(results) do
+                        if tonumber(row.intensity) == want then
+                            return row
+                        end
+                    end
+                    return nil
+                end
+            end
+
+            return results[1]
+        end
+
+        function p.singleRowTable(frame)
+            local args = getArgs(frame, { trim = true, removeBlanks = false })
+
+            local id = args[1] or args.id or args.locale_id
+            id = id and mw.text.trim(tostring(id)) or ""
+            if id == "" then
+                return '[[Category:MoodleRowError]]<strong>MoodleBucket:</strong> missing locale id.'
+            end
+
+            local row = p.fetch(id, args.intensity)
+            if not row then
+                return "[[Category:MoodleRowError]]<strong>MoodleBucket:</strong> no Bucket row for '" .. id .. "'."
+            end
+
+            local lang = Locale.resolveLang(frame)
+            local descKey = row.desc_locale_key or (id .. "dsc")
+            local moodle = Locale.getMoodle(id, lang)
+
+            local isCritical = row.critical or (row.critical_expr and row.critical_expr ~= "")
+            local nameHtml = isCritical
+                and ('<span style="color:#FF0000;">' .. mw.text.nowiki(moodle.name) .. "</span>")
+                or mw.text.nowiki(moodle.name)
+
+            local html = {
+                '{| class="wikitable"',
+                "|+",
+                '! scope="col" style="width: 10%" | Moodle',
+                '! scope="col" style="width: 50%" | Description',
+                '! scope="col" style="width: 5%" | [[Unchipped mode|Unchipped]]',
+                '! scope="col" | Cause',
+                "|-",
+                '! scope="row" | ' .. iconFile(row, id) .. "<br /> " .. nameHtml,
+                "| <i>" .. mw.text.nowiki(moodle.description) .. "</i>",
+                '| style="text-align: center" | ' .. unchippedCell(row),
+                "| " .. formatCause(row),
+                "|}",
+            }
+
+            return table.concat(html, "\n")
+        end
+
+        return p
+        """;
+
+    public const string RouterMoodleModule =
+        """
+        -- Module:MoodleData
+        -- Routes language-neutral moodle rows into Bucket tables.
+        -- Localized names/descriptions are resolved at render time via Module:Locale.
+
+        local templateTable = require("Module:MoodleBucket")
+
+        local p = {}
+
+        local INTEGER_FIELDS = { intensity = true }
+
+        local BOOLEAN_FIELDS = { critical = true, chipped_only = true }
+
+        local function toBoolean(v)
+            if v == true then return true end
+            if v == false or v == nil then return false end
+
+            v = tostring(v):lower()
+
+            return v == "true" or v == "1" or v == "yes"
+        end
+
+        local function coerce(args)
+            local r = {}
+            for k, v in pairs(args) do
+                if INTEGER_FIELDS[k] then
+                    r[k] = tonumber(v)
+                elseif BOOLEAN_FIELDS[k] then
+                    r[k] = toBoolean(v)
+                elseif v ~= nil then
+                    r[k] = tostring(v)
+                end
+            end
+            if r.locale_id then
+                r.locale_id = tostring(r.locale_id)
+            end
+            return r
+        end
+
+        local function putRow(r)
+            bucket("moodle").put(r)
+        end
+
+        function p.putAll(frame)
+            local data = mw.loadData("Module:Moodle/data")
+            local count = 0
+            for _, row in ipairs(data) do
+                putRow(row)
+                count = count + 1
+            end
+            return string.format("Stored %d moodles into Bucket.", count)
+        end
+
+        function p.fromTemplate(frame)
+            local parent = frame:getParent()
+            local r = coerce(parent.args)
+            putRow(r)
+            return p.renderRow(r, parent)
+        end
+
+        function p.renderRow(r, parent)
+            parent.args[1] = r.locale_id
+
+            if r.intensity then
+                parent.args.intensity = tostring(r.intensity)
+            end
+
+            return templateTable.singleRowTable({
+                args = parent.args,
+                getParent = function() return parent end,
+            })
+        end
+
+        return p
+        """;
+
+    #endregion Moodles
+
     public const string TriggerItemPage =
         """
         This page stores all item data into [[Extension:Bucket|Bucket]] in a single batch.
@@ -952,5 +1200,13 @@ public static class WikiContent
         It is generated automatically; do not edit by hand.
 
         {{#invoke:LiquidData|putAll}}
+        """;
+
+    public const string TriggerMoodlePage =
+    """
+        This page stores all moodle data into [[Extension:Bucket|Bucket]] in a single batch.
+        It is generated automatically; do not edit by hand.
+
+        {{#invoke:MoodleData|putAll}}
         """;
 }

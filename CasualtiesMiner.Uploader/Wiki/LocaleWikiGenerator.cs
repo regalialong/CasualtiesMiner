@@ -44,13 +44,13 @@ public static class LocaleWikiGenerator
         return $"Module:Locale/{langCode}/{suffix}";
     }
 
-    public static string BuildObjectsLocaleModule(GameLocale locale, IReadOnlyCollection<string> liquidIds, string type)
+    public static string BuildObjectsLocaleModule(GameLocale locale, IReadOnlyCollection<string> objectIds, string type)
     {
         var sb = new StringBuilder();
         sb.AppendLine(GeneratedHeader);
         sb.AppendLine("return {");
 
-        foreach (var id in liquidIds.OrderBy(x => x, StringComparer.Ordinal))
+        foreach (var id in objectIds.OrderBy(x => x, StringComparer.Ordinal))
         {
             string name = string.Empty;
             string description = string.Empty;
@@ -65,12 +65,39 @@ public static class LocaleWikiGenerator
                 name = locale.GetOther(id, $"{id}:TEMP_SMTH_IS_WRONG");
                 description = locale.GetOtherDesc(id, $"{id}:TEMP_SMTH_IS_WRONG");
             }
+            if (type == "moodles")
+            {
+                name = locale.GetMoodles(id, $"{id}:TEMP_SMTH_IS_WRONG");
+                description = locale.GetMoodlesDesc(id, $"{id}:TEMP_SMTH_IS_WRONG");
+            }
 
             sb.Append("  [").Append(LuaFormat.String(id)).Append("] = { ");
             sb.Append("name = ").Append(LuaFormat.String(name)).Append(", ");
             sb.Append("description = ").Append(LuaFormat.String(description));
             sb.AppendLine(" },");
 
+        }
+
+        sb.AppendLine("}");
+        return sb.ToString();
+    }
+
+    public static string BuildLiquidsLocaleModule(GameLocale locale, IReadOnlyList<LiquidRow> liquids)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine(GeneratedHeader);
+        sb.AppendLine("return {");
+
+        foreach (var liquid in liquids.OrderBy(l => l.LiquidId, StringComparer.Ordinal))
+        {
+            var localeKey = liquid.LocaleName;
+            var name = locale.GetOther(localeKey, $"{liquid.LiquidId}:TEMP_SMTH_IS_WRONG");
+            var description = locale.GetOtherDesc(localeKey, $"{liquid.LiquidId}:TEMP_SMTH_IS_WRONG");
+
+            sb.Append("  [").Append(LuaFormat.String(liquid.LiquidId)).Append("] = { ");
+            sb.Append("name = ").Append(LuaFormat.String(name)).Append(", ");
+            sb.Append("description = ").Append(LuaFormat.String(description));
+            sb.AppendLine(" },");
         }
 
         sb.AppendLine("}");

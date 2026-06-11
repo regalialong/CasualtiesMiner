@@ -5,7 +5,7 @@ namespace CasualtiesMiner.Uploader.Data;
 public sealed class LocaleCatalog
 {
     public const string DefaultLanguageCode = "EN";
-    public const string DefaultRemoteTag = "v6.1";
+    public const string DefaultRemoteTag = "v7.0.1";
 
     private const string RemoteRepo = "orsoniks/scavgame-locale";
 
@@ -229,13 +229,15 @@ public sealed class LocaleCatalog
     {
         var main = ReadStringDictionary(document.RootElement, "main");
         var other = ReadStringDictionary(document.RootElement, "other");
+        var moodles = ReadStringDictionary(document.RootElement, "moodles");
 
         return new GameLocale
         {
             Code = code,
             FileName = fileName,
             Main = main,
-            Other = other
+            Other = other,
+            Moodles = moodles
         };
     }
 

@@ -10,11 +10,13 @@ public sealed class LiquidRowMapper
 {
     public static LiquidRow Map(LiquidType item)
     {
-        var id = item.localeName ?? string.Empty;
+        var liquidId = string.IsNullOrWhiteSpace(item.registryId) ? item.localeName : item.registryId;
+        var localeName = string.IsNullOrWhiteSpace(item.localeName) ? liquidId : item.localeName;
 
         return new LiquidRow
         {
-            LiquidId = id,
+            LiquidId = liquidId,
+            LocaleName = localeName,
             Color = item.color.ToHex(),
             ValuePerLiter = (double)(decimal)item.valuePerLiter,
             InjectionSickness = (double)(decimal)item.injectionSickness,

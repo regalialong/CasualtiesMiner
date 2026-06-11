@@ -200,16 +200,37 @@ internal static class MoodleCallParser
             idx--;
         }
 
-        if (idx >= 0)
+        if (idx < 0)
         {
-            if (ILInstructionParser.IsLdcI4(instructions[idx]))
+            return 0;
+        }
+
+        if (ILInstructionParser.IsLdcI4(instructions[idx]))
+        {
+            return idx;
+        }
+
+        if (IsStackCompareInsn(instructions[idx].OpCode.Code))
+        {
+            var compareIndex = idx;
+            for (var i = compareIndex; i >= 0 && i >= compareIndex - 24; i--)
             {
-                idx--;
+                if (instructions[i].OpCode.Code != Code.Ldarg_0)
+                {
+                    continue;
+                }
+
+                if (TryParseFieldCompareBool(instructions, i, out _, out var endExclusive)
+                    && endExclusive == compareIndex + 1)
+                {
+                    return i;
+                }
             }
-            else if (IsCriticalExprStart(instructions, idx))
-            {
-                ILInstructionParser.ConsumeOne(instructions, ref idx);
-            }
+        }
+
+        if (IsCriticalExprStart(instructions, idx))
+        {
+            ILInstructionParser.ConsumeOne(instructions, ref idx);
         }
 
         return idx + 1;

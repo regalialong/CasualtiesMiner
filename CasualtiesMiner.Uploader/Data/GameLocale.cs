@@ -8,6 +8,7 @@ public sealed class GameLocale
 
     public IReadOnlyDictionary<string, string> Main { get; init; } = new Dictionary<string, string>();
     public IReadOnlyDictionary<string, string> Other { get; init; } = new Dictionary<string, string>();
+    public IReadOnlyDictionary<string, string> Moodles { get; init; } = new Dictionary<string, string>();
 
     public string GetObjectName(string id)
     {
@@ -17,6 +18,16 @@ public sealed class GameLocale
     public string GetObjectDescription(string id)
     {
         return Main.TryGetValue(id + "dsc", out var description) ? description : string.Empty;
+    }
+
+    public string GetMoodles(string key, string fallback)
+    {
+        return Moodles.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value) ? value : fallback;
+    }
+
+    public string GetMoodlesDesc(string key, string fallback)
+    {
+        return Moodles.TryGetValue(key + "dsc", out var value) && !string.IsNullOrWhiteSpace(value) ? value : fallback;
     }
 
     public string GetOther(string key, string fallback)

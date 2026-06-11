@@ -17,6 +17,8 @@ public static class BucketSchemas
 
     public const string LiquidBucket = "Liquid";
 
+    public const string MoodleBucket = "Moodle";
+
     private const string IndexSchema =
         """
         {
@@ -98,6 +100,7 @@ public static class BucketSchemas
         """
         {
             "liquid_id":          { "type": "TEXT" },
+            "locale_name":        { "type": "TEXT" },
             "color":              { "type": "TEXT" },
             "value_per_liter":    { "type": "DOUBLE" },
             "health_usable":      { "type": "BOOLEAN" },
@@ -105,6 +108,21 @@ public static class BucketSchemas
             "locale_from_item":   { "type": "BOOLEAN" },
             "injection_sickness": { "type": "DOUBLE" },
             "qualities":          { "type": "TEXT", "repeated": true }
+        }
+        """;
+
+    private const string MoodleSchema =
+        """
+        {
+            "locale_id":               { "type": "TEXT" },
+            "icon":                    { "type": "TEXT" },
+            "desc_locale_key":         { "type": "TEXT", "index": false },
+            "precondition_for_moodle": { "type": "TEXT", "index": false },
+            "intensity":               { "type": "INTEGER", "index": false },
+            "intensity_expr":          { "type": "TEXT", "index": false },
+            "critical":                { "type": "BOOLEAN" },
+            "critical_expr":           { "type": "TEXT", "index": false },
+            "chipped_only":            { "type": "BOOLEAN" }
         }
         """;
 
@@ -127,6 +145,7 @@ public static class BucketSchemas
             (LiquidContainerBucket, LiquidItemSchema),
             (BatteryBucket, BatteryItemSchema),
             (LiquidBucket, LiquidSchema),
+            (MoodleBucket, MoodleSchema),
         };
 
         foreach (var category in ItemRowMapper.Categories)

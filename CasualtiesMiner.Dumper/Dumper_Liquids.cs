@@ -38,8 +38,8 @@ public sealed partial class Dumper
                 continue;
             }
 
-            var key = (string)instructions[i].Operand;
-            var entry = new Dictionary<string, object?> { ["name"] = key };
+            var registryId = (string)instructions[i].Operand;
+            var entry = new Dictionary<string, object?> { ["name"] = registryId };
 
             i = ParseObjectFields(decompiler, instructions, i + 1, ["LiquidType"], entry,
                 op => op.Contains("::set_Item("));
@@ -51,7 +51,8 @@ public sealed partial class Dumper
 
             var liquid = new LiquidType
             {
-                localeName = key,
+                registryId = registryId,
+                localeName = GetValue<string>(entry, "localeName"),
                 color = GetValue<Color>(entry, "color"),
                 valuePerLiter = GetValue<float>(entry, "valuePerLiter"),
                 onDrink = GetValue<string[]>(entry, "onDrink"),

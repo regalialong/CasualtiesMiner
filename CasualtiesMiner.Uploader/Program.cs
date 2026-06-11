@@ -25,8 +25,8 @@ public static class Program
             return 1;
         }
 
-        var itemRows = LoadItemRows(options);
         var liquidRows = LoadLiquidRows(options);
+        var itemRows = LoadItemRows(options);
         var moodleRows = LoadMoodleRows(options);
         var locales = await LoadLocalesAsync(options);
 
@@ -62,7 +62,7 @@ public static class Program
 
         if (mode is "locales" or "bulk" or "all")
         {
-            await UploadLocalesAsync(client, locales, itemRows, liquidRows, options);
+            await UploadLocalesAsync(client, locales, itemRows, liquidRows, moodleRows, options);
         }
 
         if (mode is "bulk" or "all")
@@ -92,12 +92,16 @@ public static class Program
         LocaleCatalog locales,
         IReadOnlyList<ItemRow> itemRows,
         IReadOnlyList<LiquidRow> liquidRows,
+        IReadOnlyList<MoodleRow> moodleRows,
         CliOptions options)
     {
         Console.WriteLine("== Uploading locale modules ==");
 
         var router = await client.EditAsync(
-            WikiContent.LocaleModuleTitle, WikiContent.LocaleModule, "Update locale resolver", options.DryRun);
+            WikiContent.LocaleModuleTitle,
+            WikiContent.LocaleModule,
+            "Update locale resolver",
+            options.DryRun);
         Console.WriteLine($"  {WikiContent.LocaleModuleTitle}: {router}");
 
         if (locales.Locales.Count == 0)
@@ -107,7 +111,7 @@ public static class Program
         }
 
         var itemIds = itemRows.Select(r => r.ItemId).ToArray();
-        var liquidItems = liquidRows.Select(r => r.LiquidId).ToArray();
+        var moodleItems = moodleRows.Select(r => r.LocaleId).ToArray();
 
         foreach (var locale in locales.Locales)
         {
@@ -124,10 +128,19 @@ public static class Program
 
             var liquidsStatus = await client.EditAsync(
                 liquidsTitle,
-                LocaleWikiGenerator.BuildObjectsLocaleModule(locale, liquidItems, "other"),
-                $"Update {locale.Code} item strings",
+                LocaleWikiGenerator.BuildLiquidsLocaleModule(locale, liquidRows),
+                $"Update {locale.Code} liquid strings",
                 options.DryRun);
             Console.WriteLine($"  {liquidsTitle}: {liquidsStatus}");
+
+            var moodlesTitle = LocaleWikiGenerator.ModuleTitle(locale.Code, "moodles");
+
+            var moodlesStatus = await client.EditAsync(
+                moodlesTitle,
+                LocaleWikiGenerator.BuildObjectsLocaleModule(locale, moodleItems, "moodles"),
+                $"Update {locale.Code} moodle strings",
+                options.DryRun);
+            Console.WriteLine($"  {moodlesTitle}: {moodlesStatus}");
 
             var uiTitle = LocaleWikiGenerator.ModuleTitle(locale.Code, "ui");
 
@@ -157,6 +170,13 @@ public static class Program
             "Update LiquidBucket reader",
             options.DryRun);
         Console.WriteLine($"  {WikiContent.LiquidBucketModuleTitle}: {bucketLiquidModule}");
+
+        var bucketMoodleModule = await client.EditAsync(
+            WikiContent.MoodleBucketModuleTitle,
+            WikiContent.MoodleBucketModule,
+            "Update MoodleBucket reader",
+            options.DryRun);
+        Console.WriteLine($"  {WikiContent.MoodleBucketModuleTitle}: {bucketMoodleModule}");
     }
 
     private static async Task UploadBulkAsync(
@@ -170,22 +190,49 @@ public static class Program
 
         Console.WriteLine("== Items ==");
         var router = await client.EditAsync(
-            WikiContent.RouterItemModuleTitle, WikiContent.RouterItemModule, "Update item data router", options.DryRun);
+            WikiContent.RouterItemModuleTitle,
+            WikiContent.RouterItemModule,
+            "Update item data router",
+            options.DryRun);
         Console.WriteLine($"  {WikiContent.RouterItemModuleTitle}: {router}");
 
         var data = await client.EditAsync(
-            WikiContent.ItemDataModuleTitle, WikiGenerator.BuildItemDataModule(itemRows), "Regenerate item data", options.DryRun);
+            WikiContent.ItemDataModuleTitle,
+            WikiGenerator.BuildItemDataModule(itemRows),
+            "Regenerate item data",
+            options.DryRun);
         Console.WriteLine($"  {WikiContent.ItemDataModuleTitle}: {data}");
 
         Console.WriteLine("== Liquids ==");
         router = await client.EditAsync(
-            WikiContent.RouterLiquidModuleTitle, WikiContent.RouterLiquidModule, "Update liquid data router", options.DryRun);
+            WikiContent.RouterLiquidModuleTitle,
+            WikiContent.RouterLiquidModule,
+            "Update liquid data router",
+            options.DryRun);
         Console.WriteLine($"  {WikiContent.RouterLiquidModuleTitle}: {router}");
 
         data = await client.EditAsync(
-            WikiContent.LiquidDataModuleTitle, WikiGenerator.BuildLiquidDataModule(liquidRows), "Regenerate liquid data", options.DryRun);
+            WikiContent.LiquidDataModuleTitle,
+            WikiGenerator.BuildLiquidDataModule(liquidRows),
+            "Regenerate liquid data", options.DryRun);
         Console.WriteLine($"  {WikiContent.LiquidDataModuleTitle}: {data}");
 
+        Console.WriteLine("== Moodles ==");
+        router = await client.EditAsync(
+            WikiContent.RouterMoodleModuleTitle,
+            WikiContent.RouterMoodleModule,
+            "Update moodle data router",
+            options.DryRun);
+        Console.WriteLine($"  {WikiContent.RouterMoodleModuleTitle}: {router}");
+
+        var moodleData = await client.EditAsync(
+            WikiContent.MoodleDataModuleTitle,
+            WikiGenerator.BuildMoodleDataModule(moodleRows),
+            "Regenerate moodle data",
+            options.DryRun);
+        Console.WriteLine($"  {WikiContent.MoodleDataModuleTitle}: {moodleData}");
+
+        Console.WriteLine("== Triggers ==");
         var itemTrigger = await client.EditAsync(
             WikiContent.TriggerItemPageTitle,
             WikiContent.TriggerItemPage,
@@ -200,13 +247,12 @@ public static class Program
             options.DryRun);
         Console.WriteLine($"  {WikiContent.TriggerLiquidPageTitle}: {liquidTrigger}");
 
-        Console.WriteLine("== Moodles ==");
-        var moodleData = await client.EditAsync(
-            WikiContent.MoodleDataModuleTitle,
-            WikiGenerator.BuildMoodleDataModule(moodleRows),
-            "Regenerate moodle data",
+        var moodleTrigger = await client.EditAsync(
+            WikiContent.TriggerMoodlePageTitle,
+            WikiContent.TriggerMoodlePage,
+            "Refresh Bucket moodle data",
             options.DryRun);
-        Console.WriteLine($"  {WikiContent.MoodleDataModuleTitle}: {moodleData}");
+        Console.WriteLine($"  {WikiContent.TriggerMoodlePageTitle}: {moodleTrigger}");
     }
 
     private static IReadOnlyList<ItemRow> LoadItemRows(CliOptions options)
@@ -225,7 +271,7 @@ public static class Program
         var liquids = DataJson.LoadLiquids(options.DataPath);
 
         return liquids
-            .Where(item => !string.IsNullOrWhiteSpace(item.localeName))
+            .Where(item => !string.IsNullOrWhiteSpace(item.registryId) || !string.IsNullOrWhiteSpace(item.localeName))
             .Select(LiquidRowMapper.Map)
             .OrderBy(row => row.LiquidId, StringComparer.Ordinal)
             .ToList();
@@ -268,7 +314,7 @@ public static class Program
             Modes:
               schemas    Upload Bucket table definitions (Bucket:* pages).
               locales    Upload Module:Locale and Module:Locale/<lang>/* from game JSON files.
-              bulk       Upload locales, ItemBucket, Module:Item/data, Module:Liquid/data, Module:Moodle/data, and refresh Bucket.
+              bulk       Upload locales, Bucket modules, Module:*/data, and refresh Bucket (items, liquids, moodles).
               all        schemas, then bulk (locales + modules + Bucket data).
 
             Options:

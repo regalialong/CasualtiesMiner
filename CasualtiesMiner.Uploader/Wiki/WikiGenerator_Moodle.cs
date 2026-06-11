@@ -4,7 +4,7 @@ using System.Text;
 namespace CasualtiesMiner.Uploader.Wiki;
 
 /// <summary>
-/// Generates <c>Module:Moodle/data</c> keyed by locale id.
+/// Generates <c>Module:Moodle/data</c> as an array for Bucket bulk upload.
 /// </summary>
 public static partial class WikiGenerator
 {
@@ -16,7 +16,7 @@ public static partial class WikiGenerator
 
         foreach (var row in rows)
         {
-            sb.Append("  ").Append(LuaFormat.TableKey(row.LocaleId)).AppendLine(" = {");
+            sb.AppendLine("  {");
 
             foreach (var (key, value) in EnumerateMoodleFields(row))
             {
