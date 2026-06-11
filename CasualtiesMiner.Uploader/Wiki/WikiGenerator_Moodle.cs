@@ -1,4 +1,4 @@
-using CasualtiesMiner.Uploader.Data;
+﻿using CasualtiesMiner.Uploader.Data;
 using System.Text;
 
 namespace CasualtiesMiner.Uploader.Wiki;
@@ -33,6 +33,14 @@ public static partial class WikiGenerator
     private static IEnumerable<(string Key, string Value)> EnumerateMoodleFields(MoodleRow row)
     {
         yield return ("icon", LuaFormat.String(row.Icon));
+        yield return ("locale_id", LuaFormat.String(row.LocaleId));
+
+        if (!string.IsNullOrWhiteSpace(row.DescLocaleKey))
+        {
+            yield return ("desc_locale_key", LuaFormat.String(row.DescLocaleKey));
+        }
+
+        yield return ("precondition_for_moodle", LuaFormat.String(row.PreconditionForMoodle));
 
         if (row.Intensity is int intensity)
         {
@@ -51,10 +59,5 @@ public static partial class WikiGenerator
         }
 
         yield return ("chipped_only", LuaFormat.Bool(row.ChippedOnly));
-
-        if (!string.IsNullOrWhiteSpace(row.DescLocaleKey))
-        {
-            yield return ("desc_locale_key", LuaFormat.String(row.DescLocaleKey));
-        }
     }
 }

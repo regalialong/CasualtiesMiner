@@ -42,7 +42,7 @@ internal static class MoodleCallParser
                         continue;
                     }
 
-                    if (TryFormatFieldCompare(instruction.Previous, out var guardExpr))
+                    if (TryFormatFieldCompare(instructions, callIndex, instruction.Previous, out var guardExpr))
                     {
                         guards.Add(guardExpr);
                     }
@@ -50,7 +50,7 @@ internal static class MoodleCallParser
                     continue;
 
                 default:
-                    if (IsLocalLoad(instruction) && TryFormatLocalCompare(instruction, out var localGuard))
+                    if (IsLocalLoad(instruction) && TryFormatLocalCompare(instructions, callIndex, instruction, out var localGuard))
                     {
                         guards.Add(localGuard);
                     }
@@ -503,7 +503,11 @@ internal static class MoodleCallParser
         return true;
     }
 
-    private static bool TryFormatFieldCompare(Instruction start, out string expression)
+    private static bool TryFormatFieldCompare(
+        Collection<Instruction> instructions,
+        int callIndex,
+        Instruction start,
+        out string expression)
     {
         expression = "";
 
@@ -512,7 +516,7 @@ internal static class MoodleCallParser
             return false;
         }
 
-        if (!TryReadCompare(afterChain, leaf, out var op, out var literal))
+        if (!TryReadCompare(instructions, callIndex, afterChain, leaf, out var op, out var literal))
         {
             return false;
         }
@@ -564,6 +568,8 @@ internal static class MoodleCallParser
     }
 
     private static bool TryReadCompare(
+        Collection<Instruction> instructions,
+        int callIndex,
         Instruction? afterChain,
         FieldReference? leaf,
         out string op,
@@ -583,7 +589,7 @@ internal static class MoodleCallParser
             return false;
         }
 
-        op = BranchOperatorOnFallThrough(branch.OpCode.Code);
+        op = BranchOperatorForGuard(instructions, branch, callIndex);
 
         return op.Length > 0;
     }
@@ -615,7 +621,11 @@ internal static class MoodleCallParser
         return true;
     }
 
-    private static bool TryFormatLocalCompare(Instruction start, out string expression)
+    private static bool TryFormatLocalCompare(
+        Collection<Instruction> instructions,
+        int callIndex,
+        Instruction start,
+        out string expression)
     {
         expression = "";
 
@@ -631,7 +641,7 @@ internal static class MoodleCallParser
             return false;
         }
 
-        var op = BranchOperatorOnFallThrough(branch.OpCode.Code);
+        var op = BranchOperatorForGuard(instructions, branch, callIndex);
         if (op.Length == 0)
         {
             return false;
@@ -716,6 +726,25 @@ internal static class MoodleCallParser
             Code.Ceq => "==",
             _ => ""
         };
+
+    // jump target at or before AddMoodle → moodle is added when the branch is taken.
+    // jump target after AddMoodle (or outside the frame) -> moodle is added on fall-through.
+    private static string BranchOperatorForGuard(
+        Collection<Instruction> instructions,
+        Instruction branch,
+        int callIndex)
+    {
+        if (branch.Operand is Instruction target)
+        {
+            var targetIndex = IndexOf(instructions, target);
+            if (targetIndex >= 0 && targetIndex <= callIndex)
+            {
+                return BranchOperatorWhenTaken(branch.OpCode.Code);
+            }
+        }
+
+        return BranchOperatorOnFallThrough(branch.OpCode.Code);
+    }
 
     // operator for code that runs when the branch is not taken (fall-through into AddMoodle).
     private static string BranchOperatorOnFallThrough(Code code) =>
