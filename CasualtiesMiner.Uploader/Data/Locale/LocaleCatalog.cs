@@ -1,6 +1,6 @@
 ﻿using System.Text.Json;
 
-namespace CasualtiesMiner.Uploader.Data;
+namespace CasualtiesMiner.Uploader.Data.Locale;
 
 public sealed class LocaleCatalog
 {

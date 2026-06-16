@@ -102,7 +102,6 @@ public sealed partial class Dumper
                         amount = Convert.ToSingle(instructions[1].Operand)
                     };
                 }
-
             case "RecipeResult":
                 {
                     var dict = new Dictionary<string, object?>();
@@ -120,7 +119,6 @@ public sealed partial class Dumper
                         dontDrainResultLiquid = GetValue<bool>(dict, "dontDrainResultLiquid")
                     };
                 }
-
             case "RecipeItem":
                 {
                     var minimumCondition = ILInstructionParser.ParseInt(instructions[0]);
@@ -144,10 +142,8 @@ public sealed partial class Dumper
                         ignoredId = GetValue<string>(dict, "ignoredId")
                     };
                 }
-
             case "Recipes/RecipeCategory":
                 return ILInstructionParser.ParseInt(instructions[0]);
-
             case "CraftingQuality":
                 {
                     var craftingQuality = new CraftingQuality
@@ -170,7 +166,6 @@ public sealed partial class Dumper
 
                     return craftingQuality;
                 }
-
             case "UnityEngine.Color":
                 {
                     var result = new Color();
@@ -193,7 +188,6 @@ public sealed partial class Dumper
 
                     return result;
                 }
-
             case "ItemInfo/Use":
             case "ItemInfo/UseLimb":
             case "LiquidType/OnDrink":

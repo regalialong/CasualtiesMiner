@@ -1,4 +1,4 @@
-﻿namespace CasualtiesMiner.Uploader.Data;
+namespace CasualtiesMiner.Uploader.Data;
 
 /// <summary>
 /// Wiki-ready moodle row for <c>Module:Moodle/data</c>.
@@ -9,8 +9,9 @@ public sealed record MoodleRow
     public required string LocaleId { get; init; }
     public required string DescLocaleKey { get; init; }
     public required string? PreconditionForMoodle { get; init; }
+    public required string? PreconditionDisplay { get; init; }
     public required int? Intensity { get; init; }
-    public required string? IntensityExpr { get; init; }
+    public required string? IntensityBodyFieldId { get; init; }
     public required bool Critical { get; init; }
     public required string? CriticalExpr { get; init; }
     public required bool ChippedOnly { get; init; }

@@ -51,7 +51,7 @@ public sealed partial class Dumper
 
             var liquid = new LiquidType
             {
-                registryId = registryId,
+                liquidId = registryId,
                 localeName = GetValue<string>(entry, "localeName"),
                 color = GetValue<Color>(entry, "color"),
                 valuePerLiter = GetValue<float>(entry, "valuePerLiter"),

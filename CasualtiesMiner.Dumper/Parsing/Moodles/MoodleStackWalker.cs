@@ -3,7 +3,7 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Collections.Generic;
 
-namespace CasualtiesMiner.Dumper.Parsing;
+namespace CasualtiesMiner.Dumper.Parsing.Moodles;
 
 internal static class MoodleStackWalker
 {
@@ -49,6 +49,7 @@ internal static class MoodleStackWalker
     {
         var moodles = new List<MoodleInfo>();
         var frameStartIndex = 0;
+        var localPaths = LimbAggregateLocalAnalyzer.Analyze(instructions);
 
         for (var i = 0; i < instructions.Count; i++)
         {
@@ -60,7 +61,7 @@ internal static class MoodleStackWalker
             var frameLength = i - frameStartIndex + 1;
             var frame = Slice(instructions, frameStartIndex, frameLength);
 
-            if (TryParseCallFrame(frame, getMoodleMethod, out var moodle))
+            if (TryParseCallFrame(frame, getMoodleMethod, localPaths, out var moodle))
             {
                 moodles.Add(moodle);
             }
@@ -79,11 +80,12 @@ internal static class MoodleStackWalker
     private static bool TryParseCallFrame(
         Collection<Instruction> frame,
         MethodReference getMoodleMethod,
+        IReadOnlyDictionary<int, string> localPaths,
         out MoodleInfo moodle)
     {
         moodle = null!;
 
-        var parsed = MoodleCallParser.Parse(frame, getMoodleMethod);
+        var parsed = MoodleCallParser.Parse(frame, getMoodleMethod, localPaths);
         if (parsed is null)
         {
             return false;

@@ -44,6 +44,7 @@ Game locale files (`Assets/Lang/EN.json`, community translations, etc.) are uplo
 - `Module:Locale` — resolves the active language and looks up strings.
 - `Module:Locale/EN/items`, `Module:Locale/RU/items`, … — `{ bandage = { name = "...", description = "..." } }`.
 - `Module:Locale/EN/ui`, … — infobox labels and category names.
+- `Module:Locale/WikiUi` — wiki-only labels for moodle cause expressions (`body.*` → readable names).
 
 Item pages can use any title (e.g. `Pump-action shotgun`). The infobox is driven by the item id
 (`{{#invoke:ItemBucket|infobox|shotgun}}`), not the page name. Field labels and descriptions follow

@@ -1,4 +1,4 @@
-using CasualtiesMiner.Shared.Models;
+﻿using CasualtiesMiner.Shared.Models;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -43,6 +43,16 @@ internal static class DataJson
                ?? throw new InvalidOperationException("Could not parse liquids from data.json.");
     }
 
+    internal static Recipe[] LoadRecipes(string path)
+    {
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+
+        if (!document.RootElement.TryGetProperty("recipes", out var moodlesElement))
+            return [];
+
+        return moodlesElement.Deserialize<Recipe[]>(ReadOptions) ?? [];
+    }
+
     internal static MoodleInfo[] LoadMoodles(string path)
     {
         using var document = JsonDocument.Parse(File.ReadAllText(path));
@@ -51,5 +61,15 @@ internal static class DataJson
             return [];
 
         return moodlesElement.Deserialize<MoodleInfo[]>(ReadOptions) ?? [];
+    }
+
+    internal static GameFields? LoadFields(string path)
+    {
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+
+        if (!document.RootElement.TryGetProperty("fields", out var moodlesElement))
+            return null;
+
+        return moodlesElement.Deserialize<GameFields>(ReadOptions) ?? null;
     }
 }

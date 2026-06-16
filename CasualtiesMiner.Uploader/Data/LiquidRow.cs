@@ -10,11 +10,6 @@ public sealed record LiquidRow
 
     public required string LocaleName { get; init; }
 
-    /// <summary>
-    /// Stable, language-neutral wiki title (<c>Item:bandage</c>).
-    /// </summary>
-    public string PageTitle => "Liquid:" + LiquidId;
-
     public required string Color { get; init; }
 
     public required double ValuePerLiter { get; init; }

@@ -1,12 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-    <Import Project="../CasualtiesMiner.Common.props"/>
+    <Import Project="../CasualtiesMiner.Common.props" />
 
     <ItemGroup>
-        <ProjectReference Include="..\CasualtiesMiner.Shared\CasualtiesMiner.Shared.csproj"/>
+        <ProjectReference Include="..\CasualtiesMiner.Shared\CasualtiesMiner.Shared.csproj" />
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="ICSharpCode.Decompiler" Version="10.0.1.8346"/>
-        <PackageReference Include="Mono.Cecil" Version="0.11.6"/>
+        <PackageReference Include="ICSharpCode.Decompiler" Version="10.0.1.8346" />
+        <PackageReference Include="Mono.Cecil" Version="0.11.6" />
     </ItemGroup>
 </Project>

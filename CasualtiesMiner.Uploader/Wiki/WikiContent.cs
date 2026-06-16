@@ -7,22 +7,33 @@
 public static class WikiContent
 {
     public const string LocaleModuleTitle = "Module:Locale";
+    public const string WikiUiModuleTitle = "Module:Locale/WikiUi";
 
     public const string RouterItemModuleTitle = "Module:ItemData";
     public const string RouterLiquidModuleTitle = "Module:LiquidData";
+    public const string RouterRecipeModuleTitle = "Module:RecipeData";
     public const string RouterMoodleModuleTitle = "Module:MoodleData";
+    public const string RouterGameFieldModuleTitle = "Module:GameFieldData";
+    public const string RouterBodyFieldModuleTitle = "Module:BodyFieldData";
 
     public const string ItemBucketModuleTitle = "Module:ItemBucket";
     public const string LiquidBucketModuleTitle = "Module:LiquidBucket";
+    public const string RecipeBucketModuleTitle = "Module:RecipeBucket";
     public const string MoodleBucketModuleTitle = "Module:MoodleBucket";
 
     public const string ItemDataModuleTitle = "Module:Item/data";
     public const string LiquidDataModuleTitle = "Module:Liquid/data";
+    public const string RecipeDataModuleTitle = "Module:Recipes/data";
     public const string MoodleDataModuleTitle = "Module:Moodle/data";
+    public const string GameFieldDataModuleTitle = "Module:GameField/data";
+    public const string BodyFieldDataModuleTitle = "Module:BodyField/data";
 
     public const string TriggerItemPageTitle = "Project:Items data";
     public const string TriggerLiquidPageTitle = "Project:Liquid data";
+    public const string TriggerRecipesPageTitle = "Project:Recipes data";
     public const string TriggerMoodlePageTitle = "Project:Moodle data";
+    public const string TriggerGameFieldPageTitle = "Project:GameField data";
+    public const string TriggerBodyFieldPageTitle = "Project:BodyField data";
 
     #region Locale
 
@@ -32,11 +43,14 @@ public static class WikiContent
     public const string LocaleModule =
         """
         -- Module:Locale
-        -- Runtime i18n: item strings live in Module:Locale/<LANG>/items and UI labels in .../ui.
+        -- Runtime i18n: item strings live in Module:Locale/<LANG>/items, UI labels in .../ui,
+        -- wiki-only expression labels in Module:Locale/WikiUi.
         -- Language is taken from the optional |lang= parameter, otherwise the wiki content language.
 
         local p = {}
         local DEFAULT = "EN"
+
+        local wikiUiShared
 
         local function normalizeLang(code)
             if not code or code == "" then return DEFAULT end
@@ -117,6 +131,45 @@ public static class WikiContent
             return ui[key] or key
         end
 
+        function p.wikiUi(lang)
+            local perLang = loadTable(lang, "WikiUi")
+            if perLang and next(perLang) ~= nil then
+                return perLang
+            end
+            if wikiUiShared == nil then
+                wikiUiShared = tryLoadData("Module:Locale/WikiUi") or {}
+            end
+            return wikiUiShared
+        end
+
+        function p.bodyField(path, lang)
+            local tbl = p.wikiUi(lang)
+            return tbl[path] or path
+        end
+
+        function p.localizeExpr(expr, lang)
+            if not expr or expr == "" then return expr end
+            local tbl = p.wikiUi(lang)
+            local paths = {}
+            for path in pairs(tbl) do
+                if type(path) == "string" and path:find("^body%.") then
+                    paths[#paths + 1] = path
+                end
+            end
+            table.sort(paths, function(a, b) return #a > #b end)
+            for _, path in ipairs(paths) do
+                local label = tbl[path]
+                if label and label ~= "" then
+                    local escaped = path:gsub("([%.%(%)%[%]%-%+])", "%%%1")
+                    expr = expr:gsub(escaped, label)
+                end
+            end
+            if tbl.critical then
+                expr = expr:gsub("%f[%a]critical%f[%A]", tbl.critical)
+            end
+            return mw.text.trim(expr)
+        end
+
         function p.categoryName(category, lang)
             return p.ui("cat_" .. (category or "custom"), lang)
         end
@@ -158,6 +211,7 @@ public static class WikiContent
 
         local Locale = require("Module:Locale")
         local getArgs = require("Module:Arguments").getArgs
+        local liquidBucket = require("Module:LiquidBucket")
         local bit32 = require( 'bit32' )
         local yesNo = require("Module:Yesno")
 
@@ -168,7 +222,7 @@ public static class WikiContent
         local lang = mw.getContentLanguage()
 
         local DETAIL_COLUMNS = {
-            "item_id", "page", "weight", "value", "tags", "qualities", "slot_rotation",
+            "item_id", "weight", "value", "tags", "qualities", "slot_rotation",
             "usable", "usable_on_limb", "usable_with_lmb", "auto_attack", "only_hold_in_hands",
             "combineable", "destroy_at_zero_condition", "scale_weight_with_condition",
             "ignore_depression", "decay_minutes", "decay_info", "rec",
@@ -365,7 +419,6 @@ public static class WikiContent
         end
 
         -- =================================================
-
         function p.infobox(frame)
             local args = getArgs(frame)
             local itemId = args.item_id or args[1] or args["1"]
@@ -399,7 +452,6 @@ public static class WikiContent
                 description = localeItem and localeItem.description or "",
             }
             local yesTemplate = tostring(frame:expandTemplate{ title = "yes" })
-
 
             for key, value in pairs(row) do
                 if key == "decay_minutes" or key == "rot_speed" then
@@ -499,14 +551,20 @@ public static class WikiContent
                         -- column: Substance 
                         if args.column == 1 then
                             local liquidId = args.value
-                            local lookup = Locale.getLiquid(liquidId, lang)
-                            local name = lookup and lookup.name or nil
-                            local page = "Liquid:" .. liquidId
+                            local liquidLoc = Locale.getLiquid(liquidId, lang)
+                            local liquidRow = liquidBucket.fetch(liquidId)
+                            local name = liquidLoc and liquidLoc.name or nil
 
+                            local res
                             if name then
-                                return "[[" .. page .. "|" .. name .. "]]"
+                                local page = name.." (liquid)"
+                                res = "[[" .. page .. "|" .. name .. "]]"
+                            else
+                                res = name
                             end
-                            return "[[" .. page .. "|" .. liquidId .. "]]"
+
+                            local color = liquidRow.color or "transparent"
+                            return '<span style="--liquid-col: '..color..';">'..res..'</span>'
                         -- column: Amount 
                         elseif args.column == 2 then
                             local valueNum = tonumber(args.value)
@@ -550,10 +608,20 @@ public static class WikiContent
                         postprocess = postprocess
                     })
                 elseif key == "qualities" then
+                    local qualityLcToCategoryMap = {
+                        cutting = "[[Category:Tools]]",
+                        hammering = "[[Category:Tools]]",
+                    }
+
                     function process (args)
                         -- column: Quality 
                         if args.column == 1 then
-                            return capitalizeFirst(args.value)
+                            local label = capitalizeFirst(args.value)
+                            local page = "Category:Quality: "..label
+                            local res = "[[:"..page.."|"..label.."]]"
+                            local qualityCategory = "[["..page.."]]"
+                            local qualityCategory2 = qualityLcToCategoryMap[string.lower(args.value)] or ""
+                            return res .. qualityCategory2 .. qualityCategory
                         -- column: Count 
                         elseif args.column == 2 then
                             return args.value or "1"
@@ -635,59 +703,6 @@ public static class WikiContent
 
         local p = {}
 
-        local NUMBER_FIELDS = {
-            weight = true, value = true, slot_rotation = true, decay_minutes = true,
-            decay_info = true, rec = true, wearable_armor = true, wearable_isolation = true,
-            wear_hit_dur_loss_mult = true, jump_height_mult_change = true,
-            capacity = true, max_charge = true,
-        }
-
-        local BOOLEAN_FIELDS = {
-            obtainable = true, usable = true, usable_on_limb = true, usable_with_lmb = true,
-            auto_attack = true, only_hold_in_hands = true, combineable = true,
-            destroy_at_zero_condition = true, scale_weight_with_condition = true,
-            ignore_depression = true, wearable = true, wearable_can_be_held = true, auto_fill = true,
-        }
-
-        local LIST_FIELDS = { tags = true, qualities = true, default_contents = true }
-
-        local function toBoolean(v)
-            if v == true then return true end
-            if v == false or v == nil then return false end
-            v = tostring(v):lower()
-            return v == "true" or v == "1" or v == "yes"
-        end
-
-        local function toList(v)
-            if type(v) == "table" then return v end
-            local t = {}
-            if v == nil then return t end
-            for piece in tostring(v):gmatch("[^,]+") do
-                local trimmed = mw.text.trim(piece)
-                if trimmed ~= "" then t[#t + 1] = trimmed end
-            end
-            return t
-        end
-
-        local function coerce(args)
-            local r = {}
-            for k, v in pairs(args) do
-                if NUMBER_FIELDS[k] then
-                    r[k] = tonumber(v) or 0
-                elseif BOOLEAN_FIELDS[k] then
-                    r[k] = toBoolean(v)
-                elseif LIST_FIELDS[k] then
-                    r[k] = toList(v)
-                elseif v ~= nil then
-                    r[k] = tostring(v)
-                end
-            end
-            if r.item_id and not r.page then
-                r.page = "Item:" .. r.item_id
-            end
-            return r
-        end
-
         local function putRow(r)
             bucket("item").put(r)
             bucket("item_" .. (r.category or "custom")).put(r)
@@ -698,47 +713,9 @@ public static class WikiContent
         function p.putAll(frame)
             local data = mw.loadData("Module:Item/data")
             for _, row in ipairs(data) do
-                if row.item_id and not row.page then row.page = "Item:" .. row.item_id end
                 putRow(row)
             end
             return string.format("Stored %d items into Bucket.", #data)
-        end
-
-        function p.fromTemplate(frame)
-            local parent = frame:getParent()
-            local r = coerce(parent.args)
-            r.subtype = r.subtype or "base"
-            if r.obtainable == nil then
-                r.obtainable = (r.category ~= "unobtainable")
-            end
-            putRow(r)
-            return p.renderInfobox(r, parent)
-        end
-
-        function p.renderInfobox(r, frame)
-            local lang = Locale.resolveLang(frame)
-            local item = Locale.getItem(r.item_id, lang)
-            local title = item and item.name or r.item_id
-
-            local parts = {}
-            local function add(labelKey, value)
-                if value ~= nil and value ~= "" then
-                    local label = Locale.ui(labelKey, lang)
-                    parts[#parts + 1] = string.format("|-\n! %s\n| %s", label, tostring(value))
-                end
-            end
-
-            add("lbl_internal_id", r.item_id)
-            add("lbl_category", Locale.categoryName(r.category, lang))
-            add("lbl_weight", r.weight)
-            add("lbl_value", r.value)
-            if type(r.tags) == "table" and #r.tags > 0 then
-                add("lbl_tags", table.concat(r.tags, ", "))
-            end
-
-            return string.format(
-                '{| class="wikitable infobox" style="float:right"\n|+ %s\n%s\n|}',
-                title, table.concat(parts, "\n"))
         end
 
         return p
@@ -888,56 +865,6 @@ public static class WikiContent
 
         local p = {}
 
-        local NUMBER_FIELDS = {
-            value_per_liter = true, injection_sickness = true,
-        }
-
-        local BOOLEAN_FIELDS = {
-            health_usable = true, injectable = true, locale_from_item = true,
-        }
-
-        local LIST_FIELDS = { qualities = true }
-
-        local function toBoolean(v)
-            if v == true then return true end
-            if v == false or v == nil then return false end
-            v = tostring(v):lower()
-
-            return v == "true" or v == "1" or v == "yes"
-        end
-
-        local function toList(v)
-            if type(v) == "table" then return v end
-            local t = {}
-            if v == nil then return t end
-            for piece in tostring(v):gmatch("[^,]+") do
-                local trimmed = mw.text.trim(piece)
-                if trimmed ~= "" then t[#t + 1] = trimmed end
-            end
-
-            return t
-        end
-
-        local function coerce(args)
-            local r = {}
-            for k, v in pairs(args) do
-                if NUMBER_FIELDS[k] then
-                    r[k] = tonumber(v) or 0
-                elseif BOOLEAN_FIELDS[k] then
-                    r[k] = toBoolean(v)
-                elseif LIST_FIELDS[k] then
-                    r[k] = toList(v)
-                elseif v ~= nil then
-                    r[k] = tostring(v)
-                end
-            end
-            if r.liquid_id then
-                r.liquid_id = tostring(r.liquid_id)
-            end
-
-            return r
-        end
-
         local function putRow(r)
             bucket("liquid").put(r)
         end
@@ -951,28 +878,74 @@ public static class WikiContent
             return string.format("Stored %d liquids into Bucket.", #data)
         end
 
-        function p.fromTemplate(frame)
-            local parent = frame:getParent()
-            local r = coerce(parent.args)
-            putRow(r)
-
-            return p.renderInfobox(r, parent)
-        end
-
-        function p.renderInfobox(r, frame)
-            local lang = Locale.resolveLang(frame)
-            local liquid = Locale.getLiquid(r.liquid_id, lang)
-            local title = liquid and liquid.name or r.liquid_id
-
-            return string.format(
-                '{| class="wikitable infobox" style="float:right"\n|+ %s\n%s\n|}',
-                title)
-        end
-
         return p
         """;
 
     #endregion Items
+
+    #region Recipes
+
+    public const string RecipeBucketModule =
+    """
+        local p = {}
+
+        local function firstRow(result)
+            return result and result[1] or nil
+        end
+
+        function p.fetch(row)
+            return firstRow(bucket("liquid")
+                .select("liquid_id", "color", "value_per_liter", "health_usable",
+                        "injectable", "locale_from_item", "injection_sickness", "qualities")
+                .where("liquid_id", liquidId)
+                .run())
+        end
+
+        function p.main(frame)
+            local args = getArgs(frame)
+
+            local recipeId = args.liquid_id or args[1] or args["1"]
+            recipeId = recipeId and mw.text.trim(tostring(recipeId)) or ""
+
+            if recipeId == "" then
+                return "[[Category:Errors]]<strong>RecipeBucket:</strong> missing recipe id."
+            end
+
+            local row = p.fetch(recipeId)
+            if not row then
+                return "[[Category:Errors]]<strong>RecipeBucket:</strong> no Bucket row for '" .. recipeId .. "'."
+            end
+
+        end
+
+        return p
+    """;
+
+    public const string RouterRecipeModule =
+    """
+        -- Module:RecipeData
+        -- Routes language-neutral recipe rows into Bucket tables.
+        
+        local p = {}
+
+        local function putRow(row)
+            bucket("recipe").put(r)
+        end
+
+        function p.putAll(frame)
+            local data = mw.loadData("Module:Recipe/data")
+            local count = 0
+            for _, row in ipairs(data) do
+                putRow(row)
+                count = count + 1
+            end
+            return string.format("Stored %d recipes into Bucket.", count)
+        end
+
+        return p
+    """;
+
+    #endregion Recipes
 
     #region Moodles
 
@@ -991,6 +964,10 @@ public static class WikiContent
         local getArgs = require("Module:Arguments").getArgs
 
         local p = {}
+
+        local function firstRow(result)
+            return result and result[1] or nil
+        end
 
         local TABLE_COLUMNS = {
             '! scope="col" style="width: 10%" | Moodle',
@@ -1155,22 +1132,93 @@ public static class WikiContent
             return "[[File:Icon_checkmark_green.png|8x8px]]"
         end
 
-        local function formatCause(row)
+        local function fetchGameFieldValue(fieldId)
+            if not fieldId or fieldId == "" then return nil end
+            local row = firstRow(bucket("gamefield")
+                .select("value")
+                .where("game_field_id", fieldId)
+                .run())
+            return row and tonumber(row.value)
+        end
+
+        local function fetchBodyField(bodyFieldId)
+            if not bodyFieldId or bodyFieldId == "" then return nil end
+            return firstRow(bucket("bodyfield")
+                .select("body_field_id", "label", "kind",
+                        "heal_speed_field_id", "intensity_scale_field_id", "splint_multiplier_field_id")
+                .where("body_field_id", bodyFieldId)
+                .run())
+        end
+
+        local function formatDuration(seconds)
+            seconds = math.max(0, math.floor(seconds + 0.5))
+            local mins = math.floor(seconds / 60)
+            local secs = seconds % 60
+            if mins > 0 and secs > 0 then
+                return mins .. " min " .. secs .. " s"
+            elseif mins > 0 then
+                return mins .. " min"
+            end
+            return secs .. " s"
+        end
+
+        local function timerThresholdForIntensity(intensity, scale)
+            if intensity <= 0 then return 0 end
+            return (intensity - 0.5) / scale
+        end
+
+        local function formatTimerIntensity(bodyFieldId, lang)
+            local meta = fetchBodyField(bodyFieldId)
+            if not meta or meta.kind ~= "timer" then
+                return Locale.bodyField(bodyFieldId, lang)
+            end
+
+            local label = meta.label or Locale.bodyField(bodyFieldId, lang)
+            local healSpeed = fetchGameFieldValue(meta.heal_speed_field_id)
+            local intensityScale = fetchGameFieldValue(meta.intensity_scale_field_id)
+            local splintMultiplier = fetchGameFieldValue(meta.splint_multiplier_field_id)
+
+            if not healSpeed or not intensityScale or not splintMultiplier then
+                return label
+            end
+
+            local ui = Locale.wikiUi(lang)
+            local intensityWord = ui.intensity_label or "Intensity"
+
+            local thresholds = {}
+            for intensity = 3, 1, -1 do
+                thresholds[intensity] = timerThresholdForIntensity(intensity, intensityScale)
+            end
+
+            local lines = {}
+            for intensity = 3, 0, -1 do
+                local text
+                if intensity == 3 then
+                    local seconds = thresholds[3] / healSpeed
+                    local splintSeconds = thresholds[3] / (healSpeed * splintMultiplier)
+                    text = label .. " > " .. formatDuration(seconds)
+                        .. " (~" .. formatDuration(splintSeconds) .. " with splint)"
+                elseif intensity == 0 then
+                    text = label .. " ≤ " .. formatDuration(thresholds[1] / healSpeed)
+                else
+                    text = label .. " " .. formatDuration(thresholds[intensity] / healSpeed)
+                        .. " – " .. formatDuration(thresholds[intensity + 1] / healSpeed)
+                end
+                lines[#lines + 1] = intensityWord .. " " .. intensity .. ": " .. text
+            end
+
+            return table.concat(lines, "<br />")
+        end
+
+        local function formatCause(row, lang)
             local parts = {}
 
-            local pre = row.precondition_for_moodle
-            if pre and pre ~= "" and pre:lower() ~= "none" then
-                parts[#parts + 1] = pre
+            if row.precondition_display and row.precondition_display ~= "" then
+                parts[#parts + 1] = row.precondition_display
             end
 
-            if row.intensity_expr and row.intensity_expr ~= "" then
-                parts[#parts + 1] = row.intensity_expr
-            end
-
-            if row.critical_expr and row.critical_expr ~= "" then
-                parts[#parts + 1] = row.critical_expr
-            elseif row.critical then
-                parts[#parts + 1] = "critical"
+            if row.intensity_body_field_id and row.intensity_body_field_id ~= "" then
+                parts[#parts + 1] = formatTimerIntensity(row.intensity_body_field_id, lang)
             end
 
             if #parts == 0 then
@@ -1183,7 +1231,8 @@ public static class WikiContent
             local results = bucket("moodle")
                 .select(
                     "locale_id", "icon", "desc_locale_key", "precondition_for_moodle",
-                    "intensity", "intensity_expr", "critical", "critical_expr", "chipped_only")
+                    "precondition_display", "intensity", "intensity_body_field_id",
+                    "critical", "critical_expr", "chipped_only")
                 .where("locale_id", localeId)
                 .run()
 
@@ -1221,7 +1270,7 @@ public static class WikiContent
                 '! scope="row" | ' .. moodleWidget(frame, row, id, nameHtml),
                 "| <i>" .. mw.text.nowiki(moodle.description) .. "</i>",
                 '| style="text-align: center" | ' .. unchippedCell(row),
-                "| " .. formatCause(row),
+                "| " .. formatCause(row, lang),
             }
         end
 
@@ -1291,36 +1340,6 @@ public static class WikiContent
 
         local p = {}
 
-        local INTEGER_FIELDS = { intensity = true }
-
-        local BOOLEAN_FIELDS = { critical = true, chipped_only = true }
-
-        local function toBoolean(v)
-            if v == true then return true end
-            if v == false or v == nil then return false end
-
-            v = tostring(v):lower()
-
-            return v == "true" or v == "1" or v == "yes"
-        end
-
-        local function coerce(args)
-            local r = {}
-            for k, v in pairs(args) do
-                if INTEGER_FIELDS[k] then
-                    r[k] = tonumber(v)
-                elseif BOOLEAN_FIELDS[k] then
-                    r[k] = toBoolean(v)
-                elseif v ~= nil then
-                    r[k] = tostring(v)
-                end
-            end
-            if r.locale_id then
-                r.locale_id = tostring(r.locale_id)
-            end
-            return r
-        end
-
         local function putRow(r)
             bucket("moodle").put(r)
         end
@@ -1335,30 +1354,58 @@ public static class WikiContent
             return string.format("Stored %d moodles into Bucket.", count)
         end
 
-        function p.fromTemplate(frame)
-            local parent = frame:getParent()
-            local r = coerce(parent.args)
-            putRow(r)
-            return p.renderRow(r, parent)
+        return p
+        """;
+
+    #endregion Moodles
+
+    #region Game Fields
+
+    public const string RouterGameFieldModule =
+        """
+        -- Module:GameFieldData
+        -- Routes dumped game scalar constants into Bucket tables.
+
+        local p = {}
+
+        local function putRow(r)
+            bucket("gamefield").put(r)
         end
 
-        function p.renderRow(r, parent)
-            parent.args[1] = r.locale_id
-
-            if r.intensity then
-                parent.args.intensity = tostring(r.intensity)
+        function p.putAll(frame)
+            local data = mw.loadData("Module:GameField/data")
+            for _, row in ipairs(data) do
+                putRow(row)
             end
-
-            return templateTable.singleRowTable({
-                args = parent.args,
-                getParent = function() return parent end,
-            })
+            return string.format("Stored %d game fields into Bucket.", #data)
         end
 
         return p
         """;
 
-    #endregion Moodles
+    public const string RouterBodyFieldModule =
+        """
+        -- Module:BodyFieldData
+        -- Routes body field metadata into Bucket tables.
+
+        local p = {}
+
+        local function putRow(r)
+            bucket("bodyfield").put(r)
+        end
+
+        function p.putAll(frame)
+            local data = mw.loadData("Module:BodyField/data")
+            for _, row in ipairs(data) do
+                putRow(row)
+            end
+            return string.format("Stored %d body fields into Bucket.", #data)
+        end
+
+        return p
+        """;
+
+    #endregion Game Fields
 
     public const string TriggerItemPage =
         """
@@ -1376,11 +1423,35 @@ public static class WikiContent
         {{#invoke:LiquidData|putAll}}
         """;
 
+    public const string TriggerRecipesPage =
+    """
+        This page stores all liquid data into [[Extension:Bucket|Bucket]] in a single batch.
+        It is generated automatically; do not edit by hand.
+
+        {{#invoke:RecipesData|putAll}}
+        """;
+
     public const string TriggerMoodlePage =
     """
         This page stores all moodle data into [[Extension:Bucket|Bucket]] in a single batch.
         It is generated automatically; do not edit by hand.
 
         {{#invoke:MoodleData|putAll}}
+        """;
+
+    public const string TriggerGameFieldPage =
+        """
+        This page stores all game field constants into [[Extension:Bucket|Bucket]] in a single batch.
+        It is generated automatically; do not edit by hand.
+
+        {{#invoke:GameFieldData|putAll}}
+        """;
+
+    public const string TriggerBodyFieldPage =
+        """
+        This page stores all body field metadata into [[Extension:Bucket|Bucket]] in a single batch.
+        It is generated automatically; do not edit by hand.
+
+        {{#invoke:BodyFieldData|putAll}}
         """;
 }

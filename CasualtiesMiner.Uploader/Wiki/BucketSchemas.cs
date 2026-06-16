@@ -19,11 +19,13 @@ public static class BucketSchemas
 
     public const string MoodleBucket = "Moodle";
 
+    public const string GameFieldBucket = "Gamefield";
+    public const string BodyFieldBucket = "Bodyfield";
+
     private const string IndexSchema =
         """
         {
             "item_id":  { "type": "TEXT" },
-            "page":     { "type": "PAGE" },
             "category": { "type": "TEXT" },
             "subtype":  { "type": "TEXT" },
             "weight":   { "type": "DOUBLE" },
@@ -43,7 +45,6 @@ public static class BucketSchemas
         """
         {
             "item_id":                     { "type": "TEXT" },
-            "page":                        { "type": "PAGE" },
             "weight":                      { "type": "DOUBLE" },
             "value":                       { "type": "INTEGER" },
             "tags":                        { "type": "TEXT", "repeated": true },
@@ -77,7 +78,6 @@ public static class BucketSchemas
         """
         {
             "item_id":          { "type": "TEXT" },
-            "page":             { "type": "PAGE" },
             "capacity":         { "type": "DOUBLE" },
             "auto_fill":        { "type": "BOOLEAN" },
             "default_contents": { "type": "TEXT", "repeated": true }
@@ -88,7 +88,6 @@ public static class BucketSchemas
         """
         {
             "item_id":    { "type": "TEXT" },
-            "page":       { "type": "PAGE" },
             "max_charge": { "type": "DOUBLE" }
         }
         """;
@@ -111,6 +110,27 @@ public static class BucketSchemas
         }
         """;
 
+    /// <summary>
+    /// Full recipe schema.
+    /// </summary>
+    private const string RecipeSchema =
+        """
+        {
+            "recipe_id":          { "type": "TEXT" },
+            "locale_name":        { "type": "TEXT" },
+            "color":              { "type": "TEXT" },
+            "value_per_liter":    { "type": "DOUBLE" },
+            "health_usable":      { "type": "BOOLEAN" },
+            "injectable":         { "type": "BOOLEAN" },
+            "locale_from_item":   { "type": "BOOLEAN" },
+            "injection_sickness": { "type": "DOUBLE" },
+            "qualities":          { "type": "TEXT", "repeated": true }
+        }
+        """;
+
+    /// <summary>
+    /// Full moodle schema.
+    /// </summary>
     private const string MoodleSchema =
         """
         {
@@ -118,11 +138,33 @@ public static class BucketSchemas
             "icon":                    { "type": "TEXT" },
             "desc_locale_key":         { "type": "TEXT", "index": false },
             "precondition_for_moodle": { "type": "TEXT", "index": false },
+            "precondition_display":    { "type": "TEXT", "index": false },
             "intensity":               { "type": "INTEGER", "index": false },
-            "intensity_expr":          { "type": "TEXT", "index": false },
+            "intensity_body_field_id": { "type": "TEXT", "index": false },
             "critical":                { "type": "BOOLEAN" },
             "critical_expr":           { "type": "TEXT", "index": false },
             "chipped_only":            { "type": "BOOLEAN" }
+        }
+        """;
+
+    private const string GameFieldSchema =
+        """
+        {
+            "game_field_id": { "type": "TEXT" },
+            "value":         { "type": "DOUBLE" }
+        }
+        """;
+
+    private const string BodyFieldSchema =
+        """
+        {
+            "body_field_id":              { "type": "TEXT" },
+            "label":                      { "type": "TEXT", "index": false },
+            "kind":                       { "type": "TEXT" },
+            "heal_speed_field_id":        { "type": "TEXT", "index": false },
+            "max_timer_field_id":         { "type": "TEXT", "index": false },
+            "intensity_scale_field_id":   { "type": "TEXT", "index": false },
+            "splint_multiplier_field_id": { "type": "TEXT", "index": false }
         }
         """;
 
@@ -146,6 +188,8 @@ public static class BucketSchemas
             (BatteryBucket, BatteryItemSchema),
             (LiquidBucket, LiquidSchema),
             (MoodleBucket, MoodleSchema),
+            (GameFieldBucket, GameFieldSchema),
+            (BodyFieldBucket, BodyFieldSchema),
         };
 
         foreach (var category in ItemRowMapper.Categories)

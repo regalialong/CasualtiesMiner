@@ -4,9 +4,9 @@
         <RootNamespace>CasualtiesMiner.Uploader</RootNamespace>
     </PropertyGroup>
 
-    <Import Project="../CasualtiesMiner.Common.props"/>
+    <Import Project="../CasualtiesMiner.Common.props" />
 
     <ItemGroup>
-        <ProjectReference Include="..\CasualtiesMiner.Shared\CasualtiesMiner.Shared.csproj"/>
+        <ProjectReference Include="..\CasualtiesMiner.Shared\CasualtiesMiner.Shared.csproj" />
     </ItemGroup>
 </Project>

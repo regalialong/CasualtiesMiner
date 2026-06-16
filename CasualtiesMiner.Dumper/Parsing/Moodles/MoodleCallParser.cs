@@ -1,9 +1,9 @@
-﻿using CasualtiesMiner.Shared.Models;
+using CasualtiesMiner.Shared.Models;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Collections.Generic;
 
-namespace CasualtiesMiner.Dumper.Parsing;
+namespace CasualtiesMiner.Dumper.Parsing.Moodles;
 
 internal static class MoodleCallParser
 {
@@ -13,7 +13,8 @@ internal static class MoodleCallParser
     // so it just adds more complexity to the whole thing
     public static MoodleInfo? Parse(
         Collection<Instruction> instructions,
-        MethodReference getMoodleMethod)
+        MethodReference getMoodleMethod,
+        IReadOnlyDictionary<int, string> localPaths)
     {
         var callIndex = instructions.Count - 1;
         var argsStartIndex = FindAddMoodleArgsStartIndex(instructions, callIndex);
@@ -22,42 +23,7 @@ internal static class MoodleCallParser
             return null;
         }
 
-        var guards = new List<string>();
-
-        for (var i = 0; i < argsStartIndex; i++)
-        {
-            var instruction = instructions[i];
-
-            switch (instruction.OpCode.Code)
-            {
-                case Code.Ldfld:
-                    if (instruction.Operand is not FieldReference field)
-                    {
-                        continue;
-                    }
-
-                    if (field.Name != "body"
-                        || instruction.Previous?.OpCode.Code != Code.Ldarg_0)
-                    {
-                        continue;
-                    }
-
-                    if (TryFormatFieldCompare(instructions, callIndex, instruction.Previous, out var guardExpr))
-                    {
-                        guards.Add(guardExpr);
-                    }
-
-                    continue;
-
-                default:
-                    if (IsLocalLoad(instruction) && TryFormatLocalCompare(instructions, callIndex, instruction, out var localGuard))
-                    {
-                        guards.Add(localGuard);
-                    }
-
-                    continue;
-            }
-        }
+        var guards = MoodleGuardParser.ParseGuards(instructions, callIndex, argsStartIndex, localPaths).ToList();
 
         var cursor = argsStartIndex + 1;
         if (cursor >= callIndex)
@@ -66,7 +32,7 @@ internal static class MoodleCallParser
         }
 
         // get ternary `intensity`, literal, or computed expression (RoundToInt, Clamp)
-        if (!TryParseIntensity(instructions, cursor, callIndex, out var intensityText, out cursor))
+        if (!TryParseIntensity(instructions, cursor, callIndex, localPaths, out var intensityText, out cursor))
         {
             return null;
         }
@@ -79,7 +45,7 @@ internal static class MoodleCallParser
         }
         else
         {
-            intensityExpr = intensityText;
+            intensityExpr = LimbAggregateLocalAnalyzer.SubstituteLocals(intensityText, localPaths);
         }
 
         if (cursor >= callIndex || instructions[cursor].OpCode.Code != Code.Ldstr)
@@ -120,20 +86,20 @@ internal static class MoodleCallParser
             chippedOnly = ILInstructionParser.ParseInt(instructions[cursor]) != 0;
         }
 
-        Console.WriteLine($"icon: {icon}");
-        Console.WriteLine($"localeId: {localeId}");
-        Console.WriteLine($"descLocaleKey: {descLocaleKey}");
-        Console.WriteLine($"preconditionForMoodle: {(string.IsNullOrEmpty(string.Join(", ", guards)) ? "none" : string.Join(", ", guards))}");
-        Console.WriteLine($"intensity: {intensityExpr ?? intensity.ToString()}");
-        Console.WriteLine($"critical: {criticalExpr ?? critical.ToString()}");
-        Console.WriteLine($"chippedOnly: {chippedOnly}\n");
+        //Console.WriteLine($"icon: {icon}");
+        //Console.WriteLine($"localeId: {localeId}");
+        //Console.WriteLine($"descLocaleKey: {descLocaleKey}");
+        //Console.WriteLine($"preconditionForMoodle: {(string.IsNullOrEmpty(string.Join(", ", guards)) ? "none" : string.Join(", ", guards))}");
+        //Console.WriteLine($"intensity: {intensityExpr ?? intensity.ToString()}");
+        //Console.WriteLine($"critical: {criticalExpr ?? critical.ToString()}");
+        //Console.WriteLine($"chippedOnly: {chippedOnly}\n");
 
         return new MoodleInfo
         {
             icon = icon,
             localeId = localeId,
             descLocaleKey = descLocaleKey,
-            preconditionForMoodle = string.IsNullOrEmpty(string.Join(", ", guards)) ? "none" : string.Join(", ", guards),
+            preconditionForMoodle = SubstituteGuards(string.Join(", ", guards), localPaths),
             intensity = intensity,
             intensityExpr = intensityExpr,
             critical = critical,
@@ -210,7 +176,7 @@ internal static class MoodleCallParser
             return idx;
         }
 
-        if (IsStackCompareInsn(instructions[idx].OpCode.Code))
+        if (ILParserHelper.IsStackCompare(instructions[idx].OpCode.Code))
         {
             var compareIndex = idx;
             for (var i = compareIndex; i >= 0 && i >= compareIndex - 24; i--)
@@ -278,29 +244,29 @@ internal static class MoodleCallParser
             return false;
         }
 
-        if (!TryReadFieldChain(instructions[startIndex], out var path, out var leaf, out var afterChain))
+        if (!ILParserHelper.TryReadFieldChain(instructions[startIndex], out var path, out var leaf, out var afterChain))
         {
             return false;
         }
 
-        if (afterChain is null || !TryFormatLiteral(afterChain, leaf, out var literal))
+        if (afterChain is null || !ILParserHelper.TryFormatLiteral(afterChain, leaf, out var literal))
         {
             return false;
         }
 
         var compare = afterChain.Next;
-        if (compare is null || !IsStackCompareInsn(compare.OpCode.Code))
+        if (compare is null || !ILParserHelper.IsStackCompare(compare.OpCode.Code))
         {
             return false;
         }
 
-        var op = StackCompareOperator(compare.OpCode.Code);
+        var op = ILParserHelper.StackCompareOperator(compare.OpCode.Code);
         if (op.Length == 0)
         {
             return false;
         }
 
-        var compareIndex = IndexOf(instructions, compare);
+        var compareIndex = ILParserHelper.IndexOf(instructions, compare);
         if (compareIndex < 0)
         {
             return false;
@@ -328,10 +294,16 @@ internal static class MoodleCallParser
                && called.DeclaringType.FullName == getMoodleMethod.DeclaringType.FullName;
     }
 
+    private static string SubstituteGuards(string guards, IReadOnlyDictionary<int, string> localPaths) =>
+        string.IsNullOrEmpty(guards)
+            ? "none"
+            : LimbAggregateLocalAnalyzer.SubstituteLocals(guards, localPaths);
+
     private static bool TryParseIntensity(
         Collection<Instruction> instructions,
         int startIndex,
         int callIndex,
+        IReadOnlyDictionary<int, string> localPaths,
         out string expression,
         out int endExclusive)
     {
@@ -347,13 +319,14 @@ internal static class MoodleCallParser
             return true;
         }
 
-        return TryParseComputedIntensity(instructions, startIndex, callIndex, out expression, out endExclusive);
+        return TryParseComputedIntensity(instructions, startIndex, callIndex, localPaths, out expression, out endExclusive);
     }
 
     private static bool TryParseComputedIntensity(
         Collection<Instruction> instructions,
         int startIndex,
         int callIndex,
+        IReadOnlyDictionary<int, string> localPaths,
         out string expression,
         out int endExclusive)
     {
@@ -372,7 +345,7 @@ internal static class MoodleCallParser
             slice[i] = instructions[startIndex + i];
         }
 
-        if (!ILComplexExpressionParser.TryFormat(slice, out expression))
+        if (!ILComplexExpressionParser.TryFormat(slice, localPaths, out expression))
         {
             return false;
         }
@@ -437,7 +410,7 @@ internal static class MoodleCallParser
             return false;
         }
 
-        var branchIndex = IndexOf(instructions, branchInsn);
+        var branchIndex = ILParserHelper.IndexOf(instructions, branchInsn);
         if (branchIndex < 0 || branchIndex + 1 >= instructions.Count)
         {
             return false;
@@ -466,7 +439,7 @@ internal static class MoodleCallParser
             return false;
         }
 
-        var trueStart = IndexOf(instructions, trueLabel);
+        var trueStart = ILParserHelper.IndexOf(instructions, trueLabel);
         if (trueStart < 0)
         {
             return false;
@@ -477,7 +450,7 @@ internal static class MoodleCallParser
             return false;
         }
 
-        var mergeIndex = IndexOf(instructions, mergeLabel);
+        var mergeIndex = ILParserHelper.IndexOf(instructions, mergeLabel);
         if (mergeIndex < 0 || afterTrue != mergeIndex)
         {
             return false;
@@ -497,12 +470,12 @@ internal static class MoodleCallParser
         condition = "";
         branchInsn = null!;
 
-        if (!TryReadFieldChain(start, out var path, out var leaf, out var afterChain))
+        if (!ILParserHelper.TryReadFieldChain(start, out var path, out var leaf, out var afterChain))
         {
             return false;
         }
 
-        if (afterChain is null || !TryFormatLiteral(afterChain, leaf, out var literal))
+        if (afterChain is null || !ILParserHelper.TryFormatLiteral(afterChain, leaf, out var literal))
         {
             return false;
         }
@@ -513,7 +486,7 @@ internal static class MoodleCallParser
             return false;
         }
 
-        var op = BranchOperatorWhenTaken(branch.OpCode.Code);
+        var op = ILParserHelper.BranchOperatorWhenTaken(branch.OpCode.Code);
         if (op.Length == 0)
         {
             return false;
@@ -523,166 +496,6 @@ internal static class MoodleCallParser
         condition = $"{path} {op} {literal}";
         return true;
     }
-
-    private static bool TryFormatFieldCompare(
-        Collection<Instruction> instructions,
-        int callIndex,
-        Instruction start,
-        out string expression)
-    {
-        expression = "";
-
-        if (!TryReadFieldChain(start, out var path, out var leaf, out var afterChain))
-        {
-            return false;
-        }
-
-        if (!TryReadCompare(instructions, callIndex, afterChain, leaf, out var op, out var literal))
-        {
-            return false;
-        }
-
-        expression = $"{path} {op} {literal}";
-
-        return true;
-    }
-
-    private static bool TryReadFieldChain(
-        Instruction start,
-        out string path,
-        out FieldReference? leaf,
-        out Instruction? afterChain)
-    {
-        path = "";
-        leaf = null;
-        afterChain = null;
-
-        var ins = start;
-        if (ins.OpCode.Code == Code.Ldarg_0)
-        {
-            ins = ins.Next;
-        }
-
-        if (ins is null)
-        {
-            return false;
-        }
-
-        var parts = new List<string>();
-
-        while (ins is { OpCode.Code: Code.Ldfld, Operand: FieldReference field })
-        {
-            parts.Add(field.Name);
-            leaf = field;
-            ins = ins.Next;
-        }
-
-        if (parts.Count == 0)
-        {
-            return false;
-        }
-
-        path = string.Join(".", parts);
-        afterChain = ins;
-
-        return true;
-    }
-
-    private static bool TryReadCompare(
-        Collection<Instruction> instructions,
-        int callIndex,
-        Instruction? afterChain,
-        FieldReference? leaf,
-        out string op,
-        out string literal)
-    {
-        op = "";
-        literal = "";
-
-        if (afterChain is null || !TryFormatLiteral(afterChain, leaf, out literal))
-        {
-            return false;
-        }
-
-        var branch = afterChain.Next;
-        if (branch is null)
-        {
-            return false;
-        }
-
-        op = BranchOperatorForGuard(instructions, branch, callIndex);
-
-        return op.Length > 0;
-    }
-
-    private static bool TryFormatLiteral(Instruction instruction, FieldReference? leaf, out string literal)
-    {
-        literal = "";
-
-        switch (instruction.OpCode.Code)
-        {
-            case Code.Ldc_R4:
-                literal = FormatFloatLiteral((float)instruction.Operand!);
-                return true;
-            case Code.Ldc_R8:
-                literal = FormatFloatLiteral((float)(double)instruction.Operand!);
-                return true;
-        }
-
-        if (!ILInstructionParser.IsLdcI4(instruction))
-        {
-            return false;
-        }
-
-        var value = ILInstructionParser.ParseInt(instruction);
-        literal = leaf?.FieldType.FullName == "System.Single"
-            ? FormatFloatLiteral(value)
-            : value.ToString();
-
-        return true;
-    }
-
-    private static bool TryFormatLocalCompare(
-        Collection<Instruction> instructions,
-        int callIndex,
-        Instruction start,
-        out string expression)
-    {
-        expression = "";
-
-        var literalInsn = start.Next;
-        if (literalInsn is null || !TryFormatLiteral(literalInsn, null, out var literal))
-        {
-            return false;
-        }
-
-        var branch = literalInsn.Next;
-        if (branch is null)
-        {
-            return false;
-        }
-
-        var op = BranchOperatorForGuard(instructions, branch, callIndex);
-        if (op.Length == 0)
-        {
-            return false;
-        }
-
-        expression = $"{FormatLocalName(start)} {op} {literal}";
-
-        return true;
-    }
-
-    private static string FormatLocalName(Instruction instruction) =>
-        instruction.OpCode.Code switch
-        {
-            Code.Ldloc_0 => "var0",
-            Code.Ldloc_1 => "var1",
-            Code.Ldloc_2 => "var2",
-            Code.Ldloc_3 => "var3",
-            Code.Ldloc or Code.Ldloc_S => $"var{((VariableDefinition)instruction.Operand!).Index}",
-            _ => "?"
-        };
 
     private static int FindAddMoodleArgsStartIndex(Collection<Instruction> instructions, int callIndex)
     {
@@ -711,88 +524,10 @@ internal static class MoodleCallParser
         return -1;
     }
 
-    private static int IndexOf(Collection<Instruction> instructions, Instruction instruction)
-    {
-        for (var i = 0; i < instructions.Count; i++)
-        {
-            if (ReferenceEquals(instructions[i], instruction))
-            {
-                return i;
-            }
-        }
-
-        return -1;
-    }
-
     private static bool IsCriticalExprStart(Collection<Instruction> instructions, int cursor) =>
         cursor + 1 < instructions.Count
             && instructions[cursor].OpCode.Code == Code.Ldarg_0
             && instructions[cursor + 1].OpCode.Code == Code.Ldfld;
 
-    private static bool IsLocalLoad(Instruction instruction) =>
-        instruction.OpCode.Code switch
-        {
-            Code.Ldloc_0 or Code.Ldloc_1 or Code.Ldloc_2 or Code.Ldloc_3 or Code.Ldloc or Code.Ldloc_S => true,
-            _ => false
-        };
-
-    private static bool IsStackCompareInsn(Code code) =>
-        code is Code.Ceq or Code.Cgt or Code.Clt or Code.Cgt_Un or Code.Clt_Un;
-
-    private static string StackCompareOperator(Code code) =>
-        code switch
-        {
-            Code.Clt or Code.Clt_Un => "<",
-            Code.Cgt or Code.Cgt_Un => ">",
-            Code.Ceq => "==",
-            _ => ""
-        };
-
-    // jump target at or before AddMoodle → moodle is added when the branch is taken.
-    // jump target after AddMoodle (or outside the frame) -> moodle is added on fall-through.
-    private static string BranchOperatorForGuard(
-        Collection<Instruction> instructions,
-        Instruction branch,
-        int callIndex)
-    {
-        if (branch.Operand is Instruction target)
-        {
-            var targetIndex = IndexOf(instructions, target);
-            if (targetIndex >= 0 && targetIndex <= callIndex)
-            {
-                return BranchOperatorWhenTaken(branch.OpCode.Code);
-            }
-        }
-
-        return BranchOperatorOnFallThrough(branch.OpCode.Code);
-    }
-
-    // operator for code that runs when the branch is not taken (fall-through into AddMoodle).
-    private static string BranchOperatorOnFallThrough(Code code) =>
-        code switch
-        {
-            Code.Bgt or Code.Bgt_S or Code.Bgt_Un or Code.Bgt_Un_S => "<=",
-            Code.Blt or Code.Blt_S or Code.Blt_Un or Code.Blt_Un_S => ">=",
-            Code.Bge or Code.Bge_S or Code.Bge_Un or Code.Bge_Un_S => "<",
-            Code.Ble or Code.Ble_S or Code.Ble_Un or Code.Ble_Un_S => ">",
-            Code.Beq or Code.Beq_S => "!=",
-            Code.Bne_Un or Code.Bne_Un_S => "==",
-            _ => ""
-        };
-
-    private static string BranchOperatorWhenTaken(Code code) =>
-        code switch
-        {
-            Code.Bgt or Code.Bgt_S or Code.Bgt_Un or Code.Bgt_Un_S => ">",
-            Code.Blt or Code.Blt_S or Code.Blt_Un or Code.Blt_Un_S => "<",
-            Code.Bge or Code.Bge_S or Code.Bge_Un or Code.Bge_Un_S => ">=",
-            Code.Ble or Code.Ble_S or Code.Ble_Un or Code.Ble_Un_S => "<=",
-            Code.Beq or Code.Beq_S => "==",
-            Code.Bne_Un or Code.Bne_Un_S => "!=",
-            _ => ""
-        };
-
     private static string WrapNested(string value) => value.Contains('?') ? $"({value})" : value;
-
-    private static string FormatFloatLiteral(float value) => $"{value:G}f";
 }

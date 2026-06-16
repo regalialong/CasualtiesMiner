@@ -1,3 +1,4 @@
+using CasualtiesMiner.Dumper.Parsing.Moodles;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Collections.Generic;

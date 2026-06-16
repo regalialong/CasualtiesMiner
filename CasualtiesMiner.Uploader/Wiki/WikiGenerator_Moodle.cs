@@ -1,4 +1,4 @@
-﻿using CasualtiesMiner.Uploader.Data;
+using CasualtiesMiner.Uploader.Data;
 using System.Text;
 
 namespace CasualtiesMiner.Uploader.Wiki;
@@ -42,13 +42,19 @@ public static partial class WikiGenerator
 
         yield return ("precondition_for_moodle", LuaFormat.String(row.PreconditionForMoodle));
 
+        if (!string.IsNullOrWhiteSpace(row.PreconditionDisplay))
+        {
+            yield return ("precondition_display", LuaFormat.String(row.PreconditionDisplay));
+        }
+
         if (row.Intensity is int intensity)
         {
             yield return ("intensity", LuaFormat.Int(intensity));
         }
-        else if (!string.IsNullOrWhiteSpace(row.IntensityExpr))
+
+        if (!string.IsNullOrWhiteSpace(row.IntensityBodyFieldId))
         {
-            yield return ("intensity_expr", LuaFormat.String(row.IntensityExpr));
+            yield return ("intensity_body_field_id", LuaFormat.String(row.IntensityBodyFieldId));
         }
 
         yield return ("critical", LuaFormat.Bool(row.Critical));

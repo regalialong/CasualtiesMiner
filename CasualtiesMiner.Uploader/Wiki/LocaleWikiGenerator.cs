@@ -1,4 +1,5 @@
 ﻿using CasualtiesMiner.Uploader.Data;
+using CasualtiesMiner.Uploader.Data.Locale;
 using System.Text;
 
 namespace CasualtiesMiner.Uploader.Wiki;
@@ -82,6 +83,8 @@ public static class LocaleWikiGenerator
         return sb.ToString();
     }
 
+    // TODO: Fix this IReadOnlyList<LiquidRow> later because now we have
+    // discrepancy between BuildLiquidsLocaleModule and BuildObjectsLocaleModule
     public static string BuildLiquidsLocaleModule(GameLocale locale, IReadOnlyList<LiquidRow> liquids)
     {
         var sb = new StringBuilder();
@@ -122,6 +125,28 @@ public static class LocaleWikiGenerator
             // Game locale has no dedicated category names; use English defaults until translators add keys.
             var value = locale.GetOther(key, fallback);
             sb.Append("  ").Append(key).Append(" = ").Append(LuaFormat.String(value)).AppendLine(",");
+        }
+
+        sb.AppendLine("}");
+        return sb.ToString();
+    }
+
+    public static string BuildWikiUiModule()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine(GeneratedHeader);
+        sb.AppendLine("-- Wiki-only labels (body fields, moodle cause strings). Not from game locale files.");
+        sb.AppendLine("return {");
+
+        foreach (var (path, label) in WikiUiLabels.BodyFields.OrderBy(e => e.Key, StringComparer.Ordinal))
+        {
+            sb.Append("  [").Append(LuaFormat.String(path)).Append("] = ")
+                .Append(LuaFormat.String(label)).AppendLine(",");
+        }
+
+        foreach (var (key, label) in WikiUiLabels.Misc.OrderBy(e => e.Key, StringComparer.Ordinal))
+        {
+            sb.Append("  ").Append(key).Append(" = ").Append(LuaFormat.String(label)).AppendLine(",");
         }
 
         sb.AppendLine("}");

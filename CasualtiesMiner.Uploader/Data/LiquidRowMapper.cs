@@ -10,7 +10,7 @@ public sealed class LiquidRowMapper
 {
     public static LiquidRow Map(LiquidType item)
     {
-        var liquidId = string.IsNullOrWhiteSpace(item.registryId) ? item.localeName : item.registryId;
+        var liquidId = string.IsNullOrWhiteSpace(item.liquidId) ? item.localeName : item.liquidId;
         var localeName = string.IsNullOrWhiteSpace(item.localeName) ? liquidId : item.localeName;
 
         return new LiquidRow

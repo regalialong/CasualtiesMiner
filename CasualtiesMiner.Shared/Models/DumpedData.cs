@@ -7,4 +7,5 @@ public sealed class DumpedData
     public LiquidType[] Liquids { get; set; } = [];
     public BlockInfo[] Tiles { get; set; } = [];
     public MoodleInfo[] Moodles { get; set; } = [];
+    public GameFields Fields { get; set; } = new();
 }

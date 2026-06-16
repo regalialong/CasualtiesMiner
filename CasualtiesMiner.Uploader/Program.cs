@@ -1,4 +1,5 @@
 using CasualtiesMiner.Uploader.Data;
+using CasualtiesMiner.Uploader.Data.Locale;
 using CasualtiesMiner.Uploader.MediaWiki;
 using CasualtiesMiner.Uploader.Wiki;
 
@@ -25,9 +26,12 @@ public static class Program
             return 1;
         }
 
-        var liquidRows = LoadLiquidRows(options);
         var itemRows = LoadItemRows(options);
+        var liquidRows = LoadLiquidRows(options);
         var moodleRows = LoadMoodleRows(options);
+        var recipeRows = LoadRecipeRows(options);
+        var gameFieldRows = LoadGameFields(options);
+        var bodyFieldRows = BodyFieldRowMapper.Map();
         var locales = await LoadLocalesAsync(options);
 
         Console.WriteLine($"Loaded {itemRows.Count} items from {options.DataPath}.");
@@ -68,7 +72,7 @@ public static class Program
         if (mode is "bulk" or "all")
         {
             await UploadItemModulesAsync(client, options);
-            await UploadBulkAsync(client, itemRows, liquidRows, moodleRows, options);
+            await UploadBulkAsync(client, itemRows, liquidRows, moodleRows, gameFieldRows, bodyFieldRows, options);
         }
 
         Console.WriteLine("Done.");
@@ -104,6 +108,13 @@ public static class Program
             options.DryRun);
         Console.WriteLine($"  {WikiContent.LocaleModuleTitle}: {router}");
 
+        var wikiUiStatus = await client.EditAsync(
+            WikiContent.WikiUiModuleTitle,
+            LocaleWikiGenerator.BuildWikiUiModule(),
+            "Update wiki UI labels",
+            options.DryRun);
+        Console.WriteLine($"  {WikiContent.WikiUiModuleTitle}: {wikiUiStatus}");
+
         if (locales.Locales.Count == 0)
         {
             Console.WriteLine("  Warning: no locale files found; skipping Module:Locale/<lang>/*.");
@@ -112,6 +123,7 @@ public static class Program
 
         var itemIds = itemRows.Select(r => r.ItemId).ToArray();
         var moodleItems = moodleRows.Select(r => r.LocaleId).ToArray();
+        //var liquidsItems = liquidRows.Select(r => r.LocaleName).ToArray();
 
         foreach (var locale in locales.Locales)
         {
@@ -183,7 +195,10 @@ public static class Program
         MediaWikiClient client,
         IReadOnlyList<ItemRow> itemRows,
         IReadOnlyList<LiquidRow> liquidRows,
+        IReadOnlyList<RecipeRow> recipeRows,
         IReadOnlyList<MoodleRow> moodleRows,
+        IReadOnlyList<GameFieldRow> gameFieldRows,
+        BodyFieldRow[] bodyFieldRows,
         CliOptions options)
     {
         Console.WriteLine("== Uploading bulk Bucket data ==");
@@ -232,6 +247,51 @@ public static class Program
             options.DryRun);
         Console.WriteLine($"  {WikiContent.MoodleDataModuleTitle}: {moodleData}");
 
+        Console.WriteLine("== Recipes ==");
+        router = await client.EditAsync(
+            WikiContent.RouterRecipesModuleTitle,
+            WikiContent.dasdaww,
+            "Update moodle data router",
+            options.DryRun);
+        Console.WriteLine($"  {WikiContent.RouterMoodleModuleTitle}: {router}");
+
+        router = await client.EditAsync(
+            WikiContent.MoodleDataModuleTitle,
+            WikiContent.BuildRecipesDataModule(recipeRows),
+            "Update moodle data router",
+            options.DryRun);
+        Console.WriteLine($"  {WikiContent.RouterMoodleModuleTitle}: {router}");
+
+        Console.WriteLine("== Game fields ==");
+        router = await client.EditAsync(
+            WikiContent.RouterGameFieldModuleTitle,
+            WikiContent.RouterGameFieldModule,
+            "Update game field data router",
+            options.DryRun);
+        Console.WriteLine($"  {WikiContent.RouterGameFieldModuleTitle}: {router}");
+
+        var gameFieldData = await client.EditAsync(
+            WikiContent.GameFieldDataModuleTitle,
+            WikiGenerator.BuildGameFieldDataModule(gameFieldRows),
+            "Regenerate game field data",
+            options.DryRun);
+        Console.WriteLine($"  {WikiContent.GameFieldDataModuleTitle}: {gameFieldData}");
+
+        Console.WriteLine("== Body fields ==");
+        router = await client.EditAsync(
+            WikiContent.RouterBodyFieldModuleTitle,
+            WikiContent.RouterBodyFieldModule,
+            "Update body field data router",
+            options.DryRun);
+        Console.WriteLine($"  {WikiContent.RouterBodyFieldModuleTitle}: {router}");
+
+        var bodyFieldData = await client.EditAsync(
+            WikiContent.BodyFieldDataModuleTitle,
+            WikiGenerator.BuildBodyFieldDataModule(bodyFieldRows),
+            "Regenerate body field data",
+            options.DryRun);
+        Console.WriteLine($"  {WikiContent.BodyFieldDataModuleTitle}: {bodyFieldData}");
+
         Console.WriteLine("== Triggers ==");
         var itemTrigger = await client.EditAsync(
             WikiContent.TriggerItemPageTitle,
@@ -253,6 +313,20 @@ public static class Program
             "Refresh Bucket moodle data",
             options.DryRun);
         Console.WriteLine($"  {WikiContent.TriggerMoodlePageTitle}: {moodleTrigger}");
+
+        var gameFieldTrigger = await client.EditAsync(
+            WikiContent.TriggerGameFieldPageTitle,
+            WikiContent.TriggerGameFieldPage,
+            "Refresh Bucket game field data",
+            options.DryRun);
+        Console.WriteLine($"  {WikiContent.TriggerGameFieldPageTitle}: {gameFieldTrigger}");
+
+        var bodyFieldTrigger = await client.EditAsync(
+            WikiContent.TriggerBodyFieldPageTitle,
+            WikiContent.TriggerBodyFieldPage,
+            "Refresh Bucket body field data",
+            options.DryRun);
+        Console.WriteLine($"  {WikiContent.TriggerBodyFieldPageTitle}: {bodyFieldTrigger}");
     }
 
     private static IReadOnlyList<ItemRow> LoadItemRows(CliOptions options)
@@ -271,9 +345,20 @@ public static class Program
         var liquids = DataJson.LoadLiquids(options.DataPath);
 
         return liquids
-            .Where(item => !string.IsNullOrWhiteSpace(item.registryId) || !string.IsNullOrWhiteSpace(item.localeName))
+            .Where(item => !string.IsNullOrWhiteSpace(item.liquidId) || !string.IsNullOrWhiteSpace(item.localeName))
             .Select(LiquidRowMapper.Map)
             .OrderBy(row => row.LiquidId, StringComparer.Ordinal)
+            .ToList();
+    }
+
+    private static IReadOnlyList<RecipeRow> LoadRecipeRows(CliOptions options)
+    {
+        var recipes = DataJson.LoadRecipes(options.DataPath);
+
+        return recipes
+            .Where(m => !string.IsNullOrWhiteSpace(m.result.id))
+            .Select(RecipeRowMapper.Map)
+            .OrderBy(row => row.RecipeItemId, StringComparer.Ordinal)
             .ToList();
     }
 
@@ -286,6 +371,13 @@ public static class Program
             .Select(MoodleRowMapper.Map)
             .OrderBy(row => row.LocaleId, StringComparer.Ordinal)
             .ToList();
+    }
+
+    private static IReadOnlyList<GameFieldRow> LoadGameFields(CliOptions options)
+    {
+        var gameFields = DataJson.LoadFields(options.DataPath);
+
+        return GameFieldRowMapper.Map(gameFields);
     }
 
     private static async Task<LocaleCatalog> LoadLocalesAsync(CliOptions options)

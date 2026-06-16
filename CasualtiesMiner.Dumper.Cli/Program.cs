@@ -47,8 +47,10 @@ public class Program
         LiquidType[] liquids = [];
         BlockInfo[] tiles = [];
         MoodleInfo[] moodles = [];
+        GameFields? fields = null;
 
         await Task.WhenAll(
+            Task.Run(() => fields = dumper.DumpGameFields()),
             Task.Run(() => items = dumper.DumpItems(new CSharpDecompiler(assemblyPath, decompilerSettings))),
             Task.Run(() => recipes = dumper.DumpRecipes(new CSharpDecompiler(assemblyPath, decompilerSettings))),
             Task.Run(() => liquids = dumper.DumpLiquids(new CSharpDecompiler(assemblyPath, decompilerSettings))),
@@ -62,13 +64,26 @@ public class Program
         Console.WriteLine($"Dumped {tiles.Length} tiles.");
         Console.WriteLine($"Dumped {moodles.Length} moodles.");
 
+        if (fields is not null)
+        {
+            Console.WriteLine(
+                $"Dumped game fields: boneHealTimerMax={fields.BoneHealTimerMax}, "
+                    + $"boneHealSpeed={fields.BoneHealSpeed}, intensityScale={fields.IntensityScale}.");
+        }
+        else
+        {
+            Console.WriteLine(
+                $"Game fields were not dumped.");
+        }
+
         var dumpedData = new DumpedData
         {
             Items = items,
             Recipes = recipes,
             Liquids = liquids,
             Tiles = tiles,
-            Moodles = moodles
+            Moodles = moodles,
+            Fields = fields ?? new GameFields(),
         };
 
         await File.WriteAllTextAsync("data.json",

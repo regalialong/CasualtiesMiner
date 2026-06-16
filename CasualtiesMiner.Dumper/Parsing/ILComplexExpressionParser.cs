@@ -1,11 +1,14 @@
-﻿using Mono.Cecil;
+using Mono.Cecil;
 using Mono.Cecil.Cil;
 
 namespace CasualtiesMiner.Dumper.Parsing;
 
 internal static class ILComplexExpressionParser
 {
-    public static bool TryFormat(IReadOnlyList<Instruction> instructions, out string expression)
+    public static bool TryFormat(
+        IReadOnlyList<Instruction> instructions,
+        IReadOnlyDictionary<int, string> localPaths,
+        out string expression)
     {
         expression = "";
 
@@ -15,7 +18,7 @@ internal static class ILComplexExpressionParser
         }
 
         var index = instructions.Count - 1;
-        var result = ParseExpression(instructions, ref index);
+        var result = ParseExpression(instructions, ref index, localPaths);
         if (result is null || index >= 0)
         {
             return false;
@@ -26,7 +29,10 @@ internal static class ILComplexExpressionParser
         return true;
     }
 
-    private static string? ParseExpression(IReadOnlyList<Instruction> instructions, ref int index)
+    private static string? ParseExpression(
+        IReadOnlyList<Instruction> instructions,
+        ref int index,
+        IReadOnlyDictionary<int, string> localPaths)
     {
         if (index < 0)
         {
@@ -40,21 +46,21 @@ internal static class ILComplexExpressionParser
         {
             case Code.Call:
             case Code.Callvirt:
-                return ParseCall(instructions, ref index, (MethodReference)insn.Operand!);
+                return ParseCall(instructions, ref index, (MethodReference)insn.Operand!, localPaths);
 
             case Code.Add:
-                return ParseBinary(instructions, ref index, "+");
+                return ParseBinary(instructions, ref index, "+", localPaths);
             case Code.Sub:
-                return ParseBinary(instructions, ref index, "-");
+                return ParseBinary(instructions, ref index, "-", localPaths);
             case Code.Mul:
-                return ParseBinary(instructions, ref index, "*");
+                return ParseBinary(instructions, ref index, "*", localPaths);
             case Code.Div:
-                return ParseBinary(instructions, ref index, "/");
+                return ParseBinary(instructions, ref index, "/", localPaths);
 
             case Code.Ldc_R4:
-                return FormatFloat((float)insn.Operand!);
+                return ILParserHelper.FormatFloatLiteral((float)insn.Operand!);
             case Code.Ldc_R8:
-                return FormatFloat((float)(double)insn.Operand!);
+                return ILParserHelper.FormatFloatLiteral((float)(double)insn.Operand!);
 
             case Code.Ldc_I4_0:
             case Code.Ldc_I4_1:
@@ -71,7 +77,7 @@ internal static class ILComplexExpressionParser
                 return ILInstructionParser.ParseInt(insn).ToString();
 
             case Code.Ldfld:
-                var receiver = ParseExpression(instructions, ref index);
+                var receiver = ParseExpression(instructions, ref index, localPaths);
                 if (receiver is null)
                 {
                     return null;
@@ -85,8 +91,8 @@ internal static class ILComplexExpressionParser
             case Code.Ldelem_I:
             case Code.Ldelem_I4:
             case Code.Ldelem_R4:
-                var elemIndex = ParseExpression(instructions, ref index);
-                var array = ParseExpression(instructions, ref index);
+                var elemIndex = ParseExpression(instructions, ref index, localPaths);
+                var array = ParseExpression(instructions, ref index, localPaths);
                 if (elemIndex is null || array is null)
                 {
                     return null;
@@ -103,12 +109,12 @@ internal static class ILComplexExpressionParser
             case Code.Ldloc_3:
             case Code.Ldloc:
             case Code.Ldloc_S:
-                return FormatLocal(insn);
+                return ILParserHelper.FormatLocalName(insn, localPaths);
 
             case Code.Conv_R4:
             case Code.Conv_R8:
             case Code.Conv_I4:
-                return ParseExpression(instructions, ref index);
+                return ParseExpression(instructions, ref index, localPaths);
 
             default:
                 return null;
@@ -118,12 +124,13 @@ internal static class ILComplexExpressionParser
     private static string? ParseCall(
         IReadOnlyList<Instruction> instructions,
         ref int index,
-        MethodReference method)
+        MethodReference method,
+        IReadOnlyDictionary<int, string> localPaths)
     {
         var args = new string[method.Parameters.Count];
         for (var i = args.Length - 1; i >= 0; i--)
         {
-            var arg = ParseExpression(instructions, ref index);
+            var arg = ParseExpression(instructions, ref index, localPaths);
             if (arg is null)
             {
                 return null;
@@ -135,10 +142,14 @@ internal static class ILComplexExpressionParser
         return $"{FormatMethodName(method)}({string.Join(", ", args)})";
     }
 
-    private static string? ParseBinary(IReadOnlyList<Instruction> instructions, ref int index, string op)
+    private static string? ParseBinary(
+        IReadOnlyList<Instruction> instructions,
+        ref int index,
+        string op,
+        IReadOnlyDictionary<int, string> localPaths)
     {
-        var right = ParseExpression(instructions, ref index);
-        var left = ParseExpression(instructions, ref index);
+        var right = ParseExpression(instructions, ref index, localPaths);
+        var left = ParseExpression(instructions, ref index, localPaths);
         if (right is null || left is null)
         {
             return null;
@@ -154,27 +165,4 @@ internal static class ILComplexExpressionParser
             ? $"{typeName}.{method.Name}"
             : method.Name;
     }
-
-    private static string FormatLocal(Instruction instruction) =>
-        instruction.OpCode.Code switch
-        {
-            Code.Ldloc_0 => FormatLocalIndex(0, instruction),
-            Code.Ldloc_1 => FormatLocalIndex(1, instruction),
-            Code.Ldloc_2 => FormatLocalIndex(2, instruction),
-            Code.Ldloc_3 => FormatLocalIndex(3, instruction),
-            Code.Ldloc or Code.Ldloc_S => FormatLocalVariable((VariableDefinition)instruction.Operand!),
-            _ => "?"
-        };
-
-    private static string FormatLocalIndex(int index, Instruction instruction)
-    {
-        _ = instruction;
-
-        return $"var{index}";
-    }
-
-    private static string FormatLocalVariable(VariableDefinition variable) =>
-        $"var{variable.Index}";
-
-    private static string FormatFloat(float value) => $"{value:G}f";
 }

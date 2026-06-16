@@ -1,5 +1,4 @@
-﻿using CasualtiesMiner.Dumper.Parsing;
-using CasualtiesMiner.Shared.Models;
+﻿using CasualtiesMiner.Shared.Models;
 using ICSharpCode.Decompiler.CSharp;
 using Mono.Cecil.Cil;
 
@@ -28,8 +27,8 @@ public sealed partial class Dumper
         if (setupMethod is null || globalField is null)
             return [];
 
-        ILInstructionFormat.WriteMethodIl(Console.Out, setupMethod, markAddMoodleCalls: true);
-        Console.WriteLine();
+        //ILInstructionFormat.WriteMethodIl(Console.Out, setupMethod, markAddMoodleCalls: true);
+        //Console.WriteLine();
 
         var itemInfoCtor = itemInfoType.Methods.First(m => m.IsConstructor);
         var liquidItemInfoCtor = liquidItemInfo.Methods.FirstOrDefault(m => m.IsConstructor);
