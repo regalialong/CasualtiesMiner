@@ -12,6 +12,8 @@ public static class WikiContent
     public const string RouterItemModuleTitle = "Module:ItemData";
     public const string RouterLiquidModuleTitle = "Module:LiquidData";
     public const string RouterRecipeModuleTitle = "Module:RecipeData";
+    public const string RouterRecipeItemModuleTitle = "Module:RecipeItemData";
+    public const string RouterRecipeResultModuleTitle = "Module:RecipeResultData";
     public const string RouterMoodleModuleTitle = "Module:MoodleData";
     public const string RouterGameFieldModuleTitle = "Module:GameFieldData";
     public const string RouterBodyFieldModuleTitle = "Module:BodyFieldData";
@@ -23,14 +25,18 @@ public static class WikiContent
 
     public const string ItemDataModuleTitle = "Module:Item/data";
     public const string LiquidDataModuleTitle = "Module:Liquid/data";
-    public const string RecipeDataModuleTitle = "Module:Recipes/data";
+    public const string RecipeDataModuleTitle = "Module:Recipe/data";
+    public const string RecipeItemDataModuleTitle = "Module:RecipeItem/data";
+    public const string RecipeResultDataModuleTitle = "Module:RecipeResult/data";
     public const string MoodleDataModuleTitle = "Module:Moodle/data";
     public const string GameFieldDataModuleTitle = "Module:GameField/data";
     public const string BodyFieldDataModuleTitle = "Module:BodyField/data";
 
     public const string TriggerItemPageTitle = "Project:Items data";
     public const string TriggerLiquidPageTitle = "Project:Liquid data";
-    public const string TriggerRecipesPageTitle = "Project:Recipes data";
+    public const string TriggerRecipePageTitle = "Project:Recipe data";
+    public const string TriggerRecipeItemPageTitle = "Project:RecipeItem data";
+    public const string TriggerRecipeResultPageTitle = "Project:RecipeResult data";
     public const string TriggerMoodlePageTitle = "Project:Moodle data";
     public const string TriggerGameFieldPageTitle = "Project:GameField data";
     public const string TriggerBodyFieldPageTitle = "Project:BodyField data";
@@ -886,25 +892,25 @@ public static class WikiContent
     #region Recipes
 
     public const string RecipeBucketModule =
-    """
+        """
         local p = {}
 
         local function firstRow(result)
             return result and result[1] or nil
         end
 
-        function p.fetch(row)
-            return firstRow(bucket("liquid")
-                .select("liquid_id", "color", "value_per_liter", "health_usable",
-                        "injectable", "locale_from_item", "injection_sickness", "qualities")
-                .where("liquid_id", liquidId)
+        function p.fetch(recipeId)
+            return firstRow(bucket("recipe")
+                .select("recipe_id", "int", "items_id", "result_id",
+                        "category", "is_repair", "index")
+                .where("recipe_id", recipeId)
                 .run())
         end
 
         function p.main(frame)
             local args = getArgs(frame)
 
-            local recipeId = args.liquid_id or args[1] or args["1"]
+            local recipeId = args.recipe_id or args[1] or args["1"]
             recipeId = recipeId and mw.text.trim(tostring(recipeId)) or ""
 
             if recipeId == "" then
@@ -919,16 +925,16 @@ public static class WikiContent
         end
 
         return p
-    """;
+        """;
 
     public const string RouterRecipeModule =
-    """
+        """
         -- Module:RecipeData
         -- Routes language-neutral recipe rows into Bucket tables.
         
         local p = {}
 
-        local function putRow(row)
+        local function putRow(r)
             bucket("recipe").put(r)
         end
 
@@ -943,7 +949,127 @@ public static class WikiContent
         end
 
         return p
-    """;
+        """;
+
+    public const string RecipeItemBucketModule =
+        """
+        local p = {}
+
+        local function firstRow(result)
+            return result and result[1] or nil
+        end
+
+        function p.fetch(recipeId)
+            return firstRow(bucket("recipe_ingridient")
+                .select("recipe_id", "int", "items_id", "result_id",
+                        "category", "is_repair", "index")
+                .where("recipe_id", recipeId)
+                .run())
+        end
+
+        function p.main(frame)
+            local args = getArgs(frame)
+
+            local recipeId = args.recipe_id or args[1] or args["1"]
+            recipeId = recipeId and mw.text.trim(tostring(recipeId)) or ""
+
+            if recipeId == "" then
+                return "[[Category:Errors]]<strong>RecipeItemBucket:</strong> missing recipe id."
+            end
+
+            local row = p.fetch(recipeId)
+            if not row then
+                return "[[Category:Errors]]<strong>RecipeItemBucket:</strong> no Bucket row for '" .. recipeId .. "'."
+            end
+
+        end
+
+        return p
+        """;
+
+    public const string RouterRecipeItemModule =
+        """
+        -- Module:RecipeItemData
+        -- Routes language-neutral recipe rows into Bucket tables.
+        
+        local p = {}
+
+        local function putRow(r)
+            bucket("recipe_ingridient").put(r)
+        end
+
+        function p.putAll(frame)
+            local data = mw.loadData("Module:RecipeItem/data")
+            local count = 0
+            for _, row in ipairs(data) do
+                putRow(row)
+                count = count + 1
+            end
+            return string.format("Stored %d recipe items into Bucket.", count)
+        end
+
+        return p
+        """;
+
+    public const string RecipeResultBucketModule =
+    """
+        local p = {}
+
+        local function firstRow(result)
+            return result and result[1] or nil
+        end
+
+        function p.fetch(recipeId)
+            return firstRow(bucket("recipe_result")
+                .select("recipe_id", "int", "items_id", "result_id",
+                        "category", "is_repair", "index")
+                .where("recipe_id", recipeId)
+                .run())
+        end
+
+        function p.main(frame)
+            local args = getArgs(frame)
+
+            local recipeId = args.recipe_id or args[1] or args["1"]
+            recipeId = recipeId and mw.text.trim(tostring(recipeId)) or ""
+
+            if recipeId == "" then
+                return "[[Category:Errors]]<strong>RecipeResultBucket:</strong> missing recipe id."
+            end
+
+            local row = p.fetch(recipeId)
+            if not row then
+                return "[[Category:Errors]]<strong>RecipeResultBucket:</strong> no Bucket row for '" .. recipeId .. "'."
+            end
+
+        end
+
+        return p
+        """;
+
+    public const string RouterRecipeResultModule =
+        """
+        -- Module:RecipeResultData
+        -- Routes language-neutral recipe rows into Bucket tables.
+        
+        local p = {}
+
+        local function putRow(r)
+            bucket("recipe_result").put(r)
+        end
+
+        function p.putAll(frame)
+            local data = mw.loadData("Module:RecipeResult/data")
+            local count = 0
+            for _, row in ipairs(data) do
+                putRow(row)
+                count = count + 1
+            end
+            return string.format("Stored %d recipe results into Bucket.", count)
+        end
+
+        return p
+        """;
 
     #endregion Recipes
 
@@ -1423,16 +1549,32 @@ public static class WikiContent
         {{#invoke:LiquidData|putAll}}
         """;
 
-    public const string TriggerRecipesPage =
-    """
+    public const string TriggerRecipePage =
+        """
         This page stores all liquid data into [[Extension:Bucket|Bucket]] in a single batch.
         It is generated automatically; do not edit by hand.
 
-        {{#invoke:RecipesData|putAll}}
+        {{#invoke:RecipeData|putAll}}
+        """;
+
+    public const string TriggerRecipeItemPage =
+        """
+        This page stores all liquid data into [[Extension:Bucket|Bucket]] in a single batch.
+        It is generated automatically; do not edit by hand.
+
+        {{#invoke:RecipeItemData|putAll}}
+        """;
+
+    public const string TriggerRecipeResultPage =
+        """
+        This page stores all liquid data into [[Extension:Bucket|Bucket]] in a single batch.
+        It is generated automatically; do not edit by hand.
+
+        {{#invoke:RecipeResultData|putAll}}
         """;
 
     public const string TriggerMoodlePage =
-    """
+        """
         This page stores all moodle data into [[Extension:Bucket|Bucket]] in a single batch.
         It is generated automatically; do not edit by hand.
 

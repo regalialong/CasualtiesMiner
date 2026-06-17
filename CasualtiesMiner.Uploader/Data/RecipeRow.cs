@@ -8,15 +8,18 @@ namespace CasualtiesMiner.Uploader.Data;
 /// </summary>
 public sealed record RecipeRow
 {
-    public required string RecipeItemId { get; init; }
+    public required string RecipeId { get; init; }
 
-    public required List<RecipeItem> Items { get; init; }
-    public required RecipeResult Result { get; init; }
-    public required RecipeCategory Category { get; init; }
+    [Obsolete("Dosen't make sense to use it because there's separate mapper")]
+    public List<RecipeItem> Items { get; init; }
+    [Obsolete("Dosen't make sense to use it because there's separate mapper")]
+    public RecipeResult Result { get; init; }
+    public required string Category { get; init; }
 
     public required int Intelligence { get; init; }
     public required int Index { get; init; }
 
-    public required bool HasMadeBefore { get; init; }
+    [Obsolete("Dosen't make sense to use it outside the game")]
+    public bool HasMadeBefore { get; init; }
     public required bool IsRepair { get; init; }
 }

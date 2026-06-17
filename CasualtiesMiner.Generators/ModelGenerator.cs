@@ -24,6 +24,7 @@ public sealed class ModelGenerator : IIncrementalGenerator
         "LiquidStack",
         "Recipe",
         "RecipeItem",
+        "RecipeResult",
         "CraftingQuality",
         "BatteryInfo",
         "Color",

@@ -17,6 +17,10 @@ public static class BucketSchemas
 
     public const string LiquidBucket = "Liquid";
 
+    public const string RecipeBucket = "Recipe";
+    public const string RecipeIngridientBucket = "Recipe_ingridient";
+    public const string RecipeResultBucket = "Recipe_result";
+
     public const string MoodleBucket = "Moodle";
 
     public const string GameFieldBucket = "Gamefield";
@@ -25,14 +29,14 @@ public static class BucketSchemas
     private const string IndexSchema =
         """
         {
-            "item_id":  { "type": "TEXT" },
-            "category": { "type": "TEXT" },
-            "subtype":  { "type": "TEXT" },
-            "weight":   { "type": "DOUBLE" },
-            "value":    { "type": "INTEGER" },
-            "tags":     { "type": "TEXT", "repeated": true },
-            "usable":   { "type": "BOOLEAN" },
-            "wearable": { "type": "BOOLEAN" },
+            "item_id":     { "type": "TEXT" },
+            "category":    { "type": "TEXT" },
+            "subtype":     { "type": "TEXT" },
+            "weight":      { "type": "DOUBLE" },
+            "value":       { "type": "INTEGER" },
+            "tags":        { "type": "TEXT", "repeated": true },
+            "usable":      { "type": "BOOLEAN" },
+            "wearable":    { "type": "BOOLEAN" },
             "combineable": { "type": "BOOLEAN" },
             "obtainable":  { "type": "BOOLEAN" }
         }
@@ -116,15 +120,37 @@ public static class BucketSchemas
     private const string RecipeSchema =
         """
         {
-            "recipe_id":          { "type": "TEXT" },
-            "locale_name":        { "type": "TEXT" },
-            "color":              { "type": "TEXT" },
-            "value_per_liter":    { "type": "DOUBLE" },
-            "health_usable":      { "type": "BOOLEAN" },
-            "injectable":         { "type": "BOOLEAN" },
-            "locale_from_item":   { "type": "BOOLEAN" },
-            "injection_sickness": { "type": "DOUBLE" },
-            "qualities":          { "type": "TEXT", "repeated": true }
+            "recipe_id":         { "type": "TEXT" },
+            "int":               { "type": "INTEGER" },
+            "category":          { "type": "TEXT", "index": false },
+            "is_repair":         { "type": "BOOLEAN" },
+            "index":             { "type": "INTEGER" }
+        }
+        """;
+
+    private const string RecipeIngridientSchema =
+        """
+        {
+            "recipe_id":         { "type": "TEXT" },
+            "specific":          { "type": "BOOLEAN" },
+            "specific_id":       { "type": "TEXT", "index": false },
+            "is_liquid":         { "type": "BOOLEAN" },
+            "quality":           { "type": "TEXT", "repeated": true },
+            "minimum_condition": { "type": "INTEGER" },
+            "destroy_item":      { "type": "BOOLEAN" },
+            "ignored_id":        { "type": "TEXT", "index": false }
+        }
+        """;
+
+    private const string RecipeResultSchema =
+        """
+        {
+            "recipe_id":                { "type": "TEXT" },
+            "amount":                   { "type": "INTEGER" }, 
+            "dont_drain_result_liquid": { "type": "BOOLEAN" },
+            "id":                       { "type": "TEXT", "index": false },
+            "is_liquid":                { "type": "BOOLEAN" },
+            "result_condition":         { "type": "INTEGER" }
         }
         """;
 
@@ -187,6 +213,9 @@ public static class BucketSchemas
             (LiquidContainerBucket, LiquidItemSchema),
             (BatteryBucket, BatteryItemSchema),
             (LiquidBucket, LiquidSchema),
+            (RecipeBucket, RecipeSchema),
+            (RecipeIngridientBucket, RecipeIngridientSchema),
+            (RecipeResultBucket, RecipeResultSchema),
             (MoodleBucket, MoodleSchema),
             (GameFieldBucket, GameFieldSchema),
             (BodyFieldBucket, BodyFieldSchema),

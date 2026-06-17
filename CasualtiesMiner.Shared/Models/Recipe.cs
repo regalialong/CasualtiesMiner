@@ -38,14 +38,8 @@ public sealed partial class RecipeItem : IEquatable<RecipeItem>
     }
 }
 
-public sealed class RecipeResult : IEquatable<RecipeResult>
+public sealed partial class RecipeResult : IEquatable<RecipeResult>
 {
-    public int amount = 1;
-    public bool dontDrainResultLiquid;
-    public required string id;
-    public bool isLiquid;
-    public float resultCondition = 1f;
-
     public bool Equals(RecipeResult? other)
     {
         if (other is null) return false;

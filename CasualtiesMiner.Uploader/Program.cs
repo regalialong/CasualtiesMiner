@@ -29,6 +29,8 @@ public static class Program
         var itemRows = LoadItemRows(options);
         var liquidRows = LoadLiquidRows(options);
         var moodleRows = LoadMoodleRows(options);
+        var recipeItemRows = LoadRecipeItemRows(options);
+        var recipeResultRows = LoadRecipeResultRows(options);
         var recipeRows = LoadRecipeRows(options);
         var gameFieldRows = LoadGameFields(options);
         var bodyFieldRows = BodyFieldRowMapper.Map();
@@ -66,13 +68,27 @@ public static class Program
 
         if (mode is "locales" or "bulk" or "all")
         {
-            await UploadLocalesAsync(client, locales, itemRows, liquidRows, moodleRows, options);
+            await UploadLocalesAsync(client,
+                locales,
+                itemRows,
+                liquidRows,
+                moodleRows,
+                options);
         }
 
         if (mode is "bulk" or "all")
         {
             await UploadItemModulesAsync(client, options);
-            await UploadBulkAsync(client, itemRows, liquidRows, moodleRows, gameFieldRows, bodyFieldRows, options);
+            await UploadBulkAsync(client,
+                itemRows,
+                liquidRows,
+                recipeItemRows,
+                recipeResultRows,
+                recipeRows,
+                moodleRows,
+                gameFieldRows,
+                bodyFieldRows,
+                options);
         }
 
         Console.WriteLine("Done.");
@@ -195,6 +211,8 @@ public static class Program
         MediaWikiClient client,
         IReadOnlyList<ItemRow> itemRows,
         IReadOnlyList<LiquidRow> liquidRows,
+        IReadOnlyList<RecipeItemRow> recipeItemRows,
+        IReadOnlyList<RecipeResultRow> recipeResultRows,
         IReadOnlyList<RecipeRow> recipeRows,
         IReadOnlyList<MoodleRow> moodleRows,
         IReadOnlyList<GameFieldRow> gameFieldRows,
@@ -240,27 +258,55 @@ public static class Program
             options.DryRun);
         Console.WriteLine($"  {WikiContent.RouterMoodleModuleTitle}: {router}");
 
-        var moodleData = await client.EditAsync(
+        data = await client.EditAsync(
             WikiContent.MoodleDataModuleTitle,
             WikiGenerator.BuildMoodleDataModule(moodleRows),
             "Regenerate moodle data",
             options.DryRun);
-        Console.WriteLine($"  {WikiContent.MoodleDataModuleTitle}: {moodleData}");
+        Console.WriteLine($"  {WikiContent.MoodleDataModuleTitle}: {data}");
 
         Console.WriteLine("== Recipes ==");
         router = await client.EditAsync(
-            WikiContent.RouterRecipesModuleTitle,
-            WikiContent.dasdaww,
-            "Update moodle data router",
+            WikiContent.RouterRecipeItemModuleTitle,
+            WikiContent.RouterRecipeItemModule,
+            "Update recipe items data router",
             options.DryRun);
-        Console.WriteLine($"  {WikiContent.RouterMoodleModuleTitle}: {router}");
+        Console.WriteLine($"  {WikiContent.RouterRecipeItemModuleTitle}: {router}");
+
+        data = await client.EditAsync(
+            WikiContent.RecipeItemDataModuleTitle,
+            WikiGenerator.BuildRecipeItemDataModule(recipeItemRows),
+            "Regenerate recipe item data",
+            options.DryRun);
+        Console.WriteLine($"  {WikiContent.RecipeItemDataModuleTitle}: {data}");
 
         router = await client.EditAsync(
-            WikiContent.MoodleDataModuleTitle,
-            WikiContent.BuildRecipesDataModule(recipeRows),
-            "Update moodle data router",
+            WikiContent.RouterRecipeResultModuleTitle,
+            WikiContent.RouterRecipeResultModule,
+            "Update recipe result data router",
             options.DryRun);
-        Console.WriteLine($"  {WikiContent.RouterMoodleModuleTitle}: {router}");
+        Console.WriteLine($"  {WikiContent.RouterRecipeResultModuleTitle}: {router}");
+
+        data = await client.EditAsync(
+            WikiContent.RecipeResultDataModuleTitle,
+            WikiGenerator.BuildRecipeResultDataModule(recipeResultRows),
+            "Regenerate recipe result data",
+            options.DryRun);
+        Console.WriteLine($"  {WikiContent.RecipeResultDataModuleTitle}: {data}");
+
+        router = await client.EditAsync(
+            WikiContent.RouterRecipeModuleTitle,
+            WikiContent.RouterRecipeModule,
+            "Update recipe data router",
+            options.DryRun);
+        Console.WriteLine($"  {WikiContent.RouterRecipeModuleTitle}: {router}");
+
+        router = await client.EditAsync(
+            WikiContent.RecipeDataModuleTitle,
+            WikiGenerator.BuildRecipeDataModule(recipeRows),
+            "Regenerate recipe data",
+            options.DryRun);
+        Console.WriteLine($"  {WikiContent.RecipeDataModuleTitle}: {router}");
 
         Console.WriteLine("== Game fields ==");
         router = await client.EditAsync(
@@ -270,12 +316,12 @@ public static class Program
             options.DryRun);
         Console.WriteLine($"  {WikiContent.RouterGameFieldModuleTitle}: {router}");
 
-        var gameFieldData = await client.EditAsync(
+        data = await client.EditAsync(
             WikiContent.GameFieldDataModuleTitle,
             WikiGenerator.BuildGameFieldDataModule(gameFieldRows),
             "Regenerate game field data",
             options.DryRun);
-        Console.WriteLine($"  {WikiContent.GameFieldDataModuleTitle}: {gameFieldData}");
+        Console.WriteLine($"  {WikiContent.GameFieldDataModuleTitle}: {data}");
 
         Console.WriteLine("== Body fields ==");
         router = await client.EditAsync(
@@ -285,12 +331,12 @@ public static class Program
             options.DryRun);
         Console.WriteLine($"  {WikiContent.RouterBodyFieldModuleTitle}: {router}");
 
-        var bodyFieldData = await client.EditAsync(
+        data = await client.EditAsync(
             WikiContent.BodyFieldDataModuleTitle,
             WikiGenerator.BuildBodyFieldDataModule(bodyFieldRows),
             "Regenerate body field data",
             options.DryRun);
-        Console.WriteLine($"  {WikiContent.BodyFieldDataModuleTitle}: {bodyFieldData}");
+        Console.WriteLine($"  {WikiContent.BodyFieldDataModuleTitle}: {data}");
 
         Console.WriteLine("== Triggers ==");
         var itemTrigger = await client.EditAsync(
@@ -306,6 +352,27 @@ public static class Program
             "Refresh Bucket liquid data",
             options.DryRun);
         Console.WriteLine($"  {WikiContent.TriggerLiquidPageTitle}: {liquidTrigger}");
+
+        var recipeTrigger = await client.EditAsync(
+            WikiContent.TriggerRecipePageTitle,
+            WikiContent.TriggerRecipePage,
+            "Refresh Bucket recipe data",
+            options.DryRun);
+        Console.WriteLine($"  {WikiContent.TriggerRecipePageTitle}: {recipeTrigger}");
+
+        var recipeItemTrigger = await client.EditAsync(
+            WikiContent.TriggerRecipeItemPageTitle,
+            WikiContent.TriggerRecipeItemPage,
+            "Refresh Bucket recipe item data",
+            options.DryRun);
+        Console.WriteLine($"  {WikiContent.TriggerRecipeItemPageTitle}: {recipeItemTrigger}");
+
+        var recipeResultTrigger = await client.EditAsync(
+            WikiContent.TriggerRecipeResultPageTitle,
+            WikiContent.TriggerRecipeResultPage,
+            "Refresh Bucket recipe result data",
+            options.DryRun);
+        Console.WriteLine($"  {WikiContent.TriggerRecipeResultPageTitle}: {recipeResultTrigger}");
 
         var moodleTrigger = await client.EditAsync(
             WikiContent.TriggerMoodlePageTitle,
@@ -351,6 +418,28 @@ public static class Program
             .ToList();
     }
 
+    private static IReadOnlyList<RecipeItemRow> LoadRecipeItemRows(CliOptions options)
+    {
+        var recipes = DataJson.LoadRecipes(options.DataPath);
+
+        return recipes
+            .Where(m => !string.IsNullOrWhiteSpace(m.result.id))
+            .SelectMany(RecipeItemRowMapper.Map)
+            .OrderBy(row => row.RecipeId, StringComparer.Ordinal)
+            .ToList();
+    }
+
+    private static IReadOnlyList<RecipeResultRow> LoadRecipeResultRows(CliOptions options)
+    {
+        var recipes = DataJson.LoadRecipes(options.DataPath);
+
+        return recipes
+            .Where(m => !string.IsNullOrWhiteSpace(m.result.id))
+            .Select(RecipeResultRowMapper.Map)
+            .OrderBy(row => row.RecipeId, StringComparer.Ordinal)
+            .ToList();
+    }
+
     private static IReadOnlyList<RecipeRow> LoadRecipeRows(CliOptions options)
     {
         var recipes = DataJson.LoadRecipes(options.DataPath);
@@ -358,7 +447,7 @@ public static class Program
         return recipes
             .Where(m => !string.IsNullOrWhiteSpace(m.result.id))
             .Select(RecipeRowMapper.Map)
-            .OrderBy(row => row.RecipeItemId, StringComparer.Ordinal)
+            .OrderBy(row => row.RecipeId, StringComparer.Ordinal)
             .ToList();
     }
 
