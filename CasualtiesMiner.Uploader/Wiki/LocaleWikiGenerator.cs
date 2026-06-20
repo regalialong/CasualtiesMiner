@@ -146,7 +146,8 @@ public static class LocaleWikiGenerator
 
         foreach (var (key, label) in WikiUiLabels.Misc.OrderBy(e => e.Key, StringComparer.Ordinal))
         {
-            sb.Append("  ").Append(key).Append(" = ").Append(LuaFormat.String(label)).AppendLine(",");
+            sb.Append("  [").Append(LuaFormat.String(key)).Append("] = ")
+                .Append(LuaFormat.String(label)).AppendLine(",");
         }
 
         sb.AppendLine("}");

@@ -24,6 +24,9 @@ public sealed partial class Dumper
             return [];
         }
 
+        //ILInstructionFormat.WriteMethodIl(Console.Out, cctor, markAddMoodleCalls: true);
+        //Console.WriteLine();
+
         var liquidCtor = liquidType.Methods.First(m => m.IsConstructor && !m.HasParameters);
         var instructions = cctor.Body.Instructions;
 

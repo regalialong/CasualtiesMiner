@@ -1,4 +1,4 @@
-namespace CasualtiesMiner.Uploader.Wiki;
+﻿namespace CasualtiesMiner.Uploader.Wiki;
 
 /// <summary>
 /// Wiki-only labels for game expression paths (<c>body.*</c>) shown in moodle cause columns.
@@ -64,7 +64,13 @@ public static class WikiUiLabels
     public static readonly IReadOnlyDictionary<string, string> Misc =
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
+            ["is_chipped"] = "Requires chip: ",
+            ["caused_by"] = "Caused by ",
             ["critical"] = "Critical",
             ["intensity_label"] = "Intensity",
+            ["recipe.ingredients"] = "Ingredients",
+            ["recipe.condition_at_least"] = "At least %d%% condition",
+            ["recipe.any_item_with"] = "Any item with ",
+            ["recipe.quality"] = "(%d) %s quality",
         };
 }

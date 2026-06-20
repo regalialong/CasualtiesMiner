@@ -335,7 +335,6 @@ public static class WikiContent
         -- Source - https://stackoverflow.com/a/67917761
         -- Posted by George Williams, modified by community. See post 'Timeline' for change history
         -- Retrieved 2026-05-25, License - CC BY-SA 4.0
-
         local function round_to_digit(num, dp)
             --[[
             round a number to so-many decimal of places, which can be negative,
@@ -893,18 +892,89 @@ public static class WikiContent
 
     public const string RecipeBucketModule =
         """
-        local p = {}
+        local Locale = require("Module:Locale")
+        local getArgs = require("Module:Arguments").getArgs
 
+        local p = {}
+            
         local function firstRow(result)
             return result and result[1] or nil
         end
 
-        function p.fetch(recipeId)
+        function capitalizeFirst(str)
+            return (str:gsub("^%l", string.upper))
+        end
+
+        function p.fetchResultItem(recipeId)
             return firstRow(bucket("recipe")
-                .select("recipe_id", "int", "items_id", "result_id",
-                        "category", "is_repair", "index")
+                .join("recipe_result", "recipe_result.recipe_id", "recipe_id")
+                .select("recipe_id", 
+                        "int", 
+                        "category", 
+                        "is_repair", 
+                        "index",
+                        "recipe_result.amount",
+                        "recipe_result.id",
+                        "recipe_result.is_liquid",
+                        "recipe_result.result_condition"
+                        )
                 .where("recipe_id", recipeId)
                 .run())
+        end
+
+        function p.fetchIngridients(recipeId)
+            return bucket("recipe")
+                .join("recipe_ingridient", "recipe_ingridient.recipe_id", "recipe_id")
+                .select(
+                        "recipe_ingridient.specific",
+                        "recipe_ingridient.specific_id",
+                        "recipe_ingridient.is_liquid",
+                        "recipe_ingridient.quality",
+                        "recipe_ingridient.minimum_condition",
+                        "recipe_ingridient.destroy_item",
+                        "recipe_ingridient.ignored_id"
+                        )
+                .where("recipe_id", recipeId)
+                .run()
+        end
+
+        local function qualityLabel(entry)
+            if type(entry) ~= "string" or entry == "" then
+                return nil
+            end
+            local id, amount = entry:match("^([^:]+):?(.*)$")
+            id = id or entry
+            local n = tonumber(amount) or 1
+            return n, capitalizeFirst(id)
+        end
+
+        local function formatIngredientName(ingredient, lang, ui)
+            local specific = ingredient["recipe_ingridient.specific"]
+            local specificId = ingredient["recipe_ingridient.specific_id"] or ""
+            if specific and specificId ~= "" then
+                local item = Locale.getItem(specificId, lang)
+                return item and item.name or specificId
+            end
+
+            local quality = ingredient["recipe_ingridient.quality"]
+            if type(quality) == "table" and #quality > 0 then
+                local n, id = qualityLabel(quality[1])
+                if id then
+                    return (ui["recipe.any_item_with"] or "Any item with ")
+                        .. string.format(ui["recipe.quality"] or "(%d) %s quality", n, id)
+                end
+            end
+            return ui["recipe.any_item_with"] or "Any item"
+        end
+
+        local function formatIngredientDetail(ingredient, ui)
+            local minCond = tonumber(ingredient["recipe_ingridient.minimum_condition"])
+            if minCond and minCond < 1 then
+                local pct = math.floor(minCond * 100 + 0.5)
+                local template = ui["recipe.condition_at_least"] or "At least %d%% condition"
+                return string.format(template, pct)
+            end
+            return nil
         end
 
         function p.main(frame)
@@ -917,11 +987,62 @@ public static class WikiContent
                 return "[[Category:Errors]]<strong>RecipeBucket:</strong> missing recipe id."
             end
 
-            local row = p.fetch(recipeId)
+            local row = p.fetchResultItem(recipeId)
             if not row then
                 return "[[Category:Errors]]<strong>RecipeBucket:</strong> no Bucket row for '" .. recipeId .. "'."
             end
 
+            local lang = Locale.resolveLang(frame)
+            local ui = Locale.wikiUi(lang)
+
+            local resultId = row["recipe_result.id"]
+            local isLiquid = row["recipe_result.is_liquid"]
+
+            local object
+            if isLiquid == true then
+                object = Locale.getLiquid(resultId, lang)
+            else
+                object = Locale.getItem(resultId, lang)
+            end
+            local name = object and object.name or resultId
+
+            local ingredients = p.fetchIngridients(recipeId)
+
+            local divContainer = mw.html.create('div')
+                :addClass("cu-recipes")
+
+            local headContainer = divContainer:tag("div"):addClass("cu-recipe-head")
+            headContainer:tag("span")
+                :addClass("cu-recipe-head-text")
+                :wikitext(name)
+            headContainer:tag("div")
+                :addClass("cu-recipe-head-image")
+                :wikitext("[[File:" .. resultId .. ".png|48x48px]]")
+
+            local bodyContainer = divContainer:tag("div"):addClass("cu-recipe-body")
+            bodyContainer:tag("div")
+                :addClass("cu-recipe-body-title")
+                :wikitext(ui["recipe.ingredients"] or "Ingredients")
+
+            for _, ingredient in ipairs(ingredients) do
+                local block = bodyContainer:tag("div"):addClass("cu-recipe-ingredient")
+                block:tag("div")
+                    :addClass("cu-recipe-ingredient-name")
+                    :wikitext("- " .. formatIngredientName(ingredient, lang, ui))
+                local detail = formatIngredientDetail(ingredient, ui)
+                if detail then
+                    block:tag("div")
+                        :addClass("cu-recipe-ingredient-detail")
+                        :wikitext(detail)
+                end
+            end
+
+            divContainer:tag("div")
+                :addClass("cu-recipe-foot")
+                :tag("span")
+                :wikitext(name)
+        
+            return tostring(divContainer)
         end
 
         return p
@@ -951,42 +1072,6 @@ public static class WikiContent
         return p
         """;
 
-    public const string RecipeItemBucketModule =
-        """
-        local p = {}
-
-        local function firstRow(result)
-            return result and result[1] or nil
-        end
-
-        function p.fetch(recipeId)
-            return firstRow(bucket("recipe_ingridient")
-                .select("recipe_id", "int", "items_id", "result_id",
-                        "category", "is_repair", "index")
-                .where("recipe_id", recipeId)
-                .run())
-        end
-
-        function p.main(frame)
-            local args = getArgs(frame)
-
-            local recipeId = args.recipe_id or args[1] or args["1"]
-            recipeId = recipeId and mw.text.trim(tostring(recipeId)) or ""
-
-            if recipeId == "" then
-                return "[[Category:Errors]]<strong>RecipeItemBucket:</strong> missing recipe id."
-            end
-
-            local row = p.fetch(recipeId)
-            if not row then
-                return "[[Category:Errors]]<strong>RecipeItemBucket:</strong> no Bucket row for '" .. recipeId .. "'."
-            end
-
-        end
-
-        return p
-        """;
-
     public const string RouterRecipeItemModule =
         """
         -- Module:RecipeItemData
@@ -1006,42 +1091,6 @@ public static class WikiContent
                 count = count + 1
             end
             return string.format("Stored %d recipe items into Bucket.", count)
-        end
-
-        return p
-        """;
-
-    public const string RecipeResultBucketModule =
-    """
-        local p = {}
-
-        local function firstRow(result)
-            return result and result[1] or nil
-        end
-
-        function p.fetch(recipeId)
-            return firstRow(bucket("recipe_result")
-                .select("recipe_id", "int", "items_id", "result_id",
-                        "category", "is_repair", "index")
-                .where("recipe_id", recipeId)
-                .run())
-        end
-
-        function p.main(frame)
-            local args = getArgs(frame)
-
-            local recipeId = args.recipe_id or args[1] or args["1"]
-            recipeId = recipeId and mw.text.trim(tostring(recipeId)) or ""
-
-            if recipeId == "" then
-                return "[[Category:Errors]]<strong>RecipeResultBucket:</strong> missing recipe id."
-            end
-
-            local row = p.fetch(recipeId)
-            if not row then
-                return "[[Category:Errors]]<strong>RecipeResultBucket:</strong> no Bucket row for '" .. recipeId .. "'."
-            end
-
         end
 
         return p
@@ -1088,6 +1137,9 @@ public static class WikiContent
         """
         local Locale = require("Module:Locale")
         local getArgs = require("Module:Arguments").getArgs
+
+        local templateYes = mw.getCurrentFrame():expandTemplate{ title = "Yes" }
+        local templateNo = mw.getCurrentFrame():expandTemplate{ title = "No" }
 
         local p = {}
 
@@ -1400,7 +1452,8 @@ public static class WikiContent
             }
         end
 
-        function p.table(frame)
+        --- Extract arguments for use in the table function.
+        local function extractArgsForTableFn(frame)
             local args = getArgs(frame, { trim = true, removeBlanks = false })
             local entries = collectEntries(args)
 
@@ -1417,43 +1470,58 @@ public static class WikiContent
                 return '[[Category:MoodleRowError]]<strong>MoodleBucket:</strong> missing locale id.'
             end
 
-            local lang = Locale.resolveLang(frame)
-            local html = {}
+            return args, entries
+        end
 
-            html[#html + 1] = buildTableOpen(args)
-            html[#html + 1] = buildTableCaption(args)
-            for _, col in ipairs(TABLE_COLUMNS) do
-                html[#html + 1] = col
+        function p.interactiveTable(frame)
+            local args, entries = extractArgsForTableFn(frame)
+            if type(args) ~= "table" then
+                return args
             end
 
-            for _, entry in ipairs(entries) do
+            local lang = Locale.resolveLang(frame)
+            local ui = Locale.wikiUi(lang)
+
+            local tbl = mw.html.create('table')
+                :addClass("wikitable")
+                :addClass("moodles-table")
+            local headRow = tbl:tag("tr")
+                :addClass("moodles-table-moodles-row")
+            local descRow = tbl:tag("tr")
+                :addClass("moodles-table-desc-row")
+
+            for idx, entry in ipairs(entries) do
                 local intensity = resolveIntensity(entry, args)
                 local row = p.fetch(entry.id, intensity)
                 if not row then
-                    html[#html + 1] = "|-"
-                    local label = entry.id
-                    if intensity ~= nil and intensity ~= "" then
-                        label = label .. " (intensity " .. intensity .. ")"
-                    end
-                    html[#html + 1] = '| colspan="4" | [[Category:MoodleRowError]]<strong>MoodleBucket:</strong> no Bucket row for '
-                        .. mw.text.nowiki(label) .. "."
-                else
-                    local rowLines = p.renderDataRow(frame, row, entry.id, lang)
-                    for _, line in ipairs(rowLines) do
-                        html[#html + 1] = line
-                    end
+                    error("MoodleBucket: no Bucket row for " .. mw.text.nowiki(entry.id))
                 end
+
+                local locRow = Locale.getMoodle(entry.id, lang)
+                if not locRow then
+                    locRow = { name = entry.id, description = "" }
+                end
+
+                local isCritical = row.critical or (row.critical_expr and row.critical_expr ~= "")
+                local nameClass = isCritical and "cu-moodle-name cu-moodle-name--critical" or "cu-moodle-name"
+                local nameHtml = '<span class="' .. nameClass .. '">' .. mw.text.nowiki(locRow.name or "") .. "</span>"
+
+                local moodleEl = headRow:tag("th")
+                    :wikitext(moodleWidget(frame, row, entry.id, nameHtml))
+
+                if idx == 1 then moodleEl:addClass("selected") end
+
+                descRow:tag("td")
+                    :wikitext("<p style='color: var(--text-subtle);'>" .. (ui.is_chipped or "Requires chip") .. (row.chipped_only and templateYes or templateNo) .. "</p>")
+                    :wikitext(mw.text.nowiki(locRow.description))
+                    :wikitext("<p><span style='color: var(--text-subtle);'>" .. (ui.caused_by or "Caused by") .. "</span><br>" .. formatCause(row, lang) .. "</p>")
             end
 
-            html[#html + 1] = "|}"
-            return table.concat(html, "\n")
-        end
-
-        function p.singleRowTable(frame)
-            return p.table(frame)
+            return tbl
         end
 
         return p
+        
         """;
 
     public const string RouterMoodleModule =

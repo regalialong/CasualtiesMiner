@@ -121,7 +121,7 @@ public sealed partial class Dumper
                 }
             case "RecipeItem":
                 {
-                    var minimumCondition = ILInstructionParser.ParseInt(instructions[0]);
+                    var minimumCondition = Convert.ToSingle(instructions[0].Operand);
 
                     var dict = new Dictionary<string, object?>();
                     foreach (var (f, vals) in ExtractFields(instructions))
@@ -173,9 +173,9 @@ public sealed partial class Dumper
                     switch (instructions.Count)
                     {
                         case 4:
-                            result.r = (byte)(ILInstructionParser.ParseInt(instructions[0]) * 255);
-                            result.g = (byte)(ILInstructionParser.ParseInt(instructions[1]) * 255);
-                            result.b = (byte)(ILInstructionParser.ParseInt(instructions[2]) * 255);
+                            result.r = (byte)(Convert.ToSingle(instructions[0].Operand) * 255);
+                            result.g = (byte)(Convert.ToSingle(instructions[1].Operand) * 255);
+                            result.b = (byte)(Convert.ToSingle(instructions[2].Operand) * 255);
                             result.a = 255;
                             break;
                         case 6:

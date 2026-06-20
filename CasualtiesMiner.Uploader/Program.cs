@@ -78,7 +78,7 @@ public static class Program
 
         if (mode is "bulk" or "all")
         {
-            await UploadItemModulesAsync(client, options);
+            await UploadDisplayModulesAsync(client, options);
             await UploadBulkAsync(client,
                 itemRows,
                 liquidRows,
@@ -181,9 +181,9 @@ public static class Program
         }
     }
 
-    private static async Task UploadItemModulesAsync(MediaWikiClient client, CliOptions options)
+    private static async Task UploadDisplayModulesAsync(MediaWikiClient client, CliOptions options)
     {
-        Console.WriteLine("== Uploading item display modules ==");
+        Console.WriteLine("== Uploading display modules ==");
 
         var bucketItemModule = await client.EditAsync(
             WikiContent.ItemBucketModuleTitle,
@@ -198,6 +198,13 @@ public static class Program
             "Update LiquidBucket reader",
             options.DryRun);
         Console.WriteLine($"  {WikiContent.LiquidBucketModuleTitle}: {bucketLiquidModule}");
+
+        var bucketRecipeModule = await client.EditAsync(
+            WikiContent.RecipeBucketModuleTitle,
+            WikiContent.RecipeBucketModule,
+            "Update RecipeBucket reader",
+            options.DryRun);
+        Console.WriteLine($"  {WikiContent.RecipeBucketModuleTitle}: {bucketRecipeModule}");
 
         var bucketMoodleModule = await client.EditAsync(
             WikiContent.MoodleBucketModuleTitle,

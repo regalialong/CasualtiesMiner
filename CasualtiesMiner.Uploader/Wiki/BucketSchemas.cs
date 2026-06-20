@@ -136,7 +136,7 @@ public static class BucketSchemas
             "specific_id":       { "type": "TEXT", "index": false },
             "is_liquid":         { "type": "BOOLEAN" },
             "quality":           { "type": "TEXT", "repeated": true },
-            "minimum_condition": { "type": "INTEGER" },
+            "minimum_condition": { "type": "DOUBLE" },
             "destroy_item":      { "type": "BOOLEAN" },
             "ignored_id":        { "type": "TEXT", "index": false }
         }

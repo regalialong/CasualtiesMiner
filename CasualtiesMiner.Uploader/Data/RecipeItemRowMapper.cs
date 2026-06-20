@@ -23,7 +23,7 @@ public static class RecipeItemRowMapper
                 SpecificId = string.IsNullOrEmpty(item.specificId) ? "" : item.specificId,
                 IgnoredId = recipe.isRepair ? "" : recipe.result.id,
                 Quality = item.quality is null ? [] : MapQualities([item.quality]),
-                MinimumCondition = item.minimumCondition,
+                MinimumCondition = (double)(decimal)item.minimumCondition,
                 Specific = !string.IsNullOrEmpty(item.specificId),
                 DestroyItem = item.destroyItem,
                 IsLiquid = item.isLiquid,
