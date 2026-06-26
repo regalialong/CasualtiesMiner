@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace CasualtiesMiner.Uploader.Data;
 
-public static class RecipeRowMapper
+internal static class RecipeRowMapper
 {
     private static readonly string[] Categories =
         ["materials", "tools", "medicine", "utilities", "food"];

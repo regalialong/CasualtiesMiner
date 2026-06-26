@@ -3,7 +3,7 @@
 /// <summary>
 /// Wiki-only labels for game expression paths (<c>body.*</c>) shown in moodle cause columns.
 /// </summary>
-public static class WikiUiLabels
+internal static class WikiUiLabels
 {
     public static readonly IReadOnlyDictionary<string, string> BodyFields =
         new Dictionary<string, string>(StringComparer.Ordinal)

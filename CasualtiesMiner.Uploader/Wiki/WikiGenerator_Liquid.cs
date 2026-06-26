@@ -6,7 +6,7 @@ namespace CasualtiesMiner.Uploader.Wiki;
 /// <summary>
 /// Generates <c>Module:Liquid/data</c> for bulk Bucket upload.
 /// </summary>
-public static partial class WikiGenerator
+internal static partial class WikiGenerator
 {
     public static string BuildLiquidDataModule(IReadOnlyList<LiquidRow> rows)
     {

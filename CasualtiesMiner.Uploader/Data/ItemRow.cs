@@ -1,10 +1,10 @@
-namespace CasualtiesMiner.Uploader.Data;
+﻿namespace CasualtiesMiner.Uploader.Data;
 
 /// <summary>
 /// A flattened, wiki-ready representation of a single item. All values are already converted to the
 /// shape expected by the Bucket schema; the Lua/wikitext generators only serialize this object.
 /// </summary>
-public sealed record ItemRow
+internal sealed record ItemRow
 {
     public required string ItemId { get; init; }
     public required string Category { get; init; }

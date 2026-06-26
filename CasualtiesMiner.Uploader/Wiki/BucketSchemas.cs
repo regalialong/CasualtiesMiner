@@ -6,7 +6,7 @@ namespace CasualtiesMiner.Uploader.Wiki;
 /// Bucket table definitions. Each entry is a page in the <c>Bucket:</c> namespace whose content is the
 /// JSON schema described at https://meta.weirdgloop.org/w/Extension:Bucket.
 /// </summary>
-public static class BucketSchemas
+internal static class BucketSchemas
 {
     /// <summary>
     /// The lightweight reference table that lists every item and its category.

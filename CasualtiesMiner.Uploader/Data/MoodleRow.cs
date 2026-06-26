@@ -1,9 +1,9 @@
-namespace CasualtiesMiner.Uploader.Data;
+﻿namespace CasualtiesMiner.Uploader.Data;
 
 /// <summary>
 /// Wiki-ready moodle row for <c>Module:Moodle/data</c>.
 /// </summary>
-public sealed record MoodleRow
+internal sealed record MoodleRow
 {
     public required string Icon { get; init; }
     public required string LocaleId { get; init; }

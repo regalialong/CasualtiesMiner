@@ -6,7 +6,7 @@ namespace CasualtiesMiner.Uploader.Wiki;
 /// <summary>
 /// Generates <c>Module:Recipe/data</c> for bulk Bucket upload.
 /// </summary>
-public static partial class WikiGenerator
+internal static partial class WikiGenerator
 {
     public static string BuildRecipeDataModule(IReadOnlyList<RecipeRow> rows)
     {

@@ -2,7 +2,7 @@
 
 namespace CasualtiesMiner.Uploader.Data.Locale;
 
-public sealed class LocaleCatalog
+internal sealed class LocaleCatalog
 {
     public const string DefaultLanguageCode = "EN";
     public const string DefaultRemoteTag = "v7.0.1";

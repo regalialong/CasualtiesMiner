@@ -1,6 +1,6 @@
 ﻿namespace CasualtiesMiner.Uploader.Data;
 
-public sealed record RecipeItemRow
+internal sealed record RecipeItemRow
 {
     public required string RecipeId { get; init; }
     public required string SpecificId { get; init; }

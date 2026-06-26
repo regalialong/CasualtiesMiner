@@ -1,4 +1,4 @@
-using CasualtiesMiner.Uploader.Data;
+﻿using CasualtiesMiner.Uploader.Data;
 using System.Text;
 
 namespace CasualtiesMiner.Uploader.Wiki;
@@ -6,7 +6,7 @@ namespace CasualtiesMiner.Uploader.Wiki;
 /// <summary>
 /// Generates <c>Module:Moodle/data</c> as an array for Bucket bulk upload.
 /// </summary>
-public static partial class WikiGenerator
+internal static partial class WikiGenerator
 {
     public static string BuildMoodleDataModule(IReadOnlyList<MoodleRow> rows)
     {

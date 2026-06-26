@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace CasualtiesMiner.Uploader.Wiki;
 
-public static partial class MoodleCauseFormatter
+internal static partial class MoodleCauseFormatter
 {
     [GeneratedRegex(@"^(.+?)\s*(>=|<=|>|<)\s*(.+)$", RegexOptions.CultureInvariant)]
     private static partial Regex ComparisonExpr();

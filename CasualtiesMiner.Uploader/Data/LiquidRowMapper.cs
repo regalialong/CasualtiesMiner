@@ -6,7 +6,7 @@ namespace CasualtiesMiner.Uploader.Data;
 /// <summary>
 /// Converts dumped <see cref="LiquidRow"/> instances into wiki-ready <see cref="LiquidRow"/>s.
 /// </summary>
-public sealed class LiquidRowMapper
+internal sealed class LiquidRowMapper
 {
     public static LiquidRow Map(LiquidType item)
     {

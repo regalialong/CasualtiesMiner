@@ -1,9 +1,9 @@
-namespace CasualtiesMiner.Uploader.Data;
+﻿namespace CasualtiesMiner.Uploader.Data;
 
 /// <summary>
 /// Stable keys for <see cref="GameFieldRow"/> rows (match <c>GameFields</c> property names, lowercased).
 /// </summary>
-public static class GameFieldIds
+internal static class GameFieldIds
 {
     public const string BoneHealTimerMax = "bonehealtimermax";
     public const string BoneHealSpeed = "bonehealspeed";

@@ -1,6 +1,6 @@
 ﻿namespace CasualtiesMiner.Uploader.Data.Locale;
 
-public sealed class GameLocale
+internal sealed class GameLocale
 {
     public string FileName { get; init; } = string.Empty;
 

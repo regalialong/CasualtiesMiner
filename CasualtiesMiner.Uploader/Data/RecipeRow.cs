@@ -6,7 +6,7 @@ namespace CasualtiesMiner.Uploader.Data;
 /// A flattened, wiki-ready representation of a single recipe entity. All values are already converted to the
 /// shape expected by the Bucket schema; the Lua/wikitext generators only serialize this object.
 /// </summary>
-public sealed record RecipeRow
+internal sealed record RecipeRow
 {
     public required string RecipeId { get; init; }
 

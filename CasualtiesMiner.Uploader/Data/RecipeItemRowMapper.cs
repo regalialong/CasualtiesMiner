@@ -2,7 +2,7 @@
 
 namespace CasualtiesMiner.Uploader.Data;
 
-public static class RecipeItemRowMapper
+internal static class RecipeItemRowMapper
 {
     public static RecipeItemRow[] Map(Recipe recipe)
     {

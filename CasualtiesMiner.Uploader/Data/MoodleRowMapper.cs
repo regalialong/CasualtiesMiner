@@ -1,9 +1,9 @@
-using CasualtiesMiner.Shared.Models;
+﻿using CasualtiesMiner.Shared.Models;
 using CasualtiesMiner.Uploader.Wiki;
 
 namespace CasualtiesMiner.Uploader.Data;
 
-public static class MoodleRowMapper
+internal static class MoodleRowMapper
 {
     public static MoodleRow Map(MoodleInfo moodle)
     {

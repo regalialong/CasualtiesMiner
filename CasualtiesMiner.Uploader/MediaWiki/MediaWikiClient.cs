@@ -5,7 +5,7 @@ using System.Text.Json;
 
 namespace CasualtiesMiner.Uploader.MediaWiki;
 
-public sealed class MediaWikiClient : IDisposable
+internal sealed class MediaWikiClient : IDisposable
 {
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(5);
 

@@ -5,7 +5,7 @@ namespace CasualtiesMiner.Uploader.Data;
 /// <summary>
 /// Converts dumped <see cref="ItemInfo"/> instances into wiki-ready <see cref="ItemRow"/>s.
 /// </summary>
-public static class ItemRowMapper
+internal static class ItemRowMapper
 {
     /// <summary>
     /// All item categories used by the game (see <c>Item.SetupItems</c>).

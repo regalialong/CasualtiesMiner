@@ -1,8 +1,8 @@
-using CasualtiesMiner.Uploader.Wiki;
+﻿using CasualtiesMiner.Uploader.Wiki;
 
 namespace CasualtiesMiner.Uploader.Data;
 
-public static class BodyFieldRowMapper
+internal static class BodyFieldRowMapper
 {
     public static BodyFieldRow[] Map() =>
     [

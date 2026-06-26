@@ -4,7 +4,7 @@ namespace CasualtiesMiner.Uploader.Wiki;
 /// Hand-authored wiki pages (Lua router, locale resolver, trigger page).
 /// Generated pages: <c>Module:Item/data</c>, <c>Module:Locale/&lt;lang&gt;/*</c>.
 /// </summary>
-public static class WikiContent
+internal static class WikiContent
 {
     public const string LocaleModuleTitle = "Module:Locale";
     public const string WikiUiModuleTitle = "Module:Locale/WikiUi";

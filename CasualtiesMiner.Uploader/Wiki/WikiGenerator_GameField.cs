@@ -1,9 +1,9 @@
-using CasualtiesMiner.Uploader.Data;
+﻿using CasualtiesMiner.Uploader.Data;
 using System.Text;
 
 namespace CasualtiesMiner.Uploader.Wiki;
 
-public static partial class WikiGenerator
+internal static partial class WikiGenerator
 {
     public static string BuildGameFieldDataModule(IReadOnlyList<GameFieldRow> rows)
     {

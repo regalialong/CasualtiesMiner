@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 
 using CasualtiesMiner.Uploader.Data;
 
@@ -7,7 +7,7 @@ namespace CasualtiesMiner.Uploader.Wiki;
 /// <summary>
 /// Classifies dumper <c>intensity_expr</c> strings into wiki-friendly cause kinds.
 /// </summary>
-public static partial class MoodleCauseClassifier
+internal static partial class MoodleCauseClassifier
 {
     [GeneratedRegex(
         @"^Mathf\.RoundToInt\(\s*\(?\s*(?<field>body(?:\.\w+|\[\d+\])+)\s*\*\s*0[,.]03f\s*\)?\s*\)$",

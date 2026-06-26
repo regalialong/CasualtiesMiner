@@ -1,10 +1,10 @@
-namespace CasualtiesMiner.Uploader.Data;
+﻿namespace CasualtiesMiner.Uploader.Data;
 
 /// <summary>
 /// Wiki-ready body field metadata for <c>Module:BodyField/data</c> / Bucket <c>bodyfield</c>.
 /// Timer rows reference scalar constants via <see cref="GameFieldIds"/>.
 /// </summary>
-public sealed record BodyFieldRow
+internal sealed record BodyFieldRow
 {
     public required string BodyFieldId { get; init; }
     public required string Label { get; init; }

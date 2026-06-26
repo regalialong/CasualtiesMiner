@@ -1,9 +1,9 @@
-using CasualtiesMiner.Shared.Models;
+﻿using CasualtiesMiner.Shared.Models;
 using System.Globalization;
 
 namespace CasualtiesMiner.Uploader.Data;
 
-public static class GameFieldRowMapper
+internal static class GameFieldRowMapper
 {
     public static IReadOnlyDictionary<string, double> ToLookup(GameFields? item)
     {

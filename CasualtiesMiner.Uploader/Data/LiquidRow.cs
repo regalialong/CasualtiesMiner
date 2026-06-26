@@ -4,7 +4,7 @@
 /// A flattened, wiki-ready representation of a single liquid entity. All values are already converted to the
 /// shape expected by the Bucket schema; the Lua/wikitext generators only serialize this object.
 /// </summary>
-public sealed record LiquidRow
+internal sealed record LiquidRow
 {
     public required string LiquidId { get; init; }
 
