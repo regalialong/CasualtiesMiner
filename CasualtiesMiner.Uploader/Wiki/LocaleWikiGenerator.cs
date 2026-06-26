@@ -113,17 +113,33 @@ public static class LocaleWikiGenerator
         sb.AppendLine(GeneratedHeader);
         sb.AppendLine("return {");
 
+        //UI keys
         foreach (var (key, gameKey, fallback) in UiKeys)
         {
             var value = locale.GetOther(gameKey, fallback);
             sb.Append("  ").Append(key).Append(" = ").Append(LuaFormat.String(value)).AppendLine(",");
         }
 
+        //Item categories
         foreach (var (categoryId, fallback) in CategoryLabels)
         {
             var key = "cat_" + categoryId;
+
             // Game locale has no dedicated category names; use English defaults until translators add keys.
             var value = locale.GetOther(key, fallback);
+            sb.Append("  ").Append(key).Append(" = ").Append(LuaFormat.String(value)).AppendLine(",");
+        }
+
+        //cq categories
+        foreach (var (key, value) in locale.Other.OrderBy(e => e.Key, StringComparer.Ordinal))
+        {
+            if (key.Length <= 2
+                || !key.StartsWith("cq", StringComparison.OrdinalIgnoreCase)
+                || key.EndsWith("dsc", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             sb.Append("  ").Append(key).Append(" = ").Append(LuaFormat.String(value)).AppendLine(",");
         }
 

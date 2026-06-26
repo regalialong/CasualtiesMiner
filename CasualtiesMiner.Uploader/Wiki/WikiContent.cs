@@ -1,4 +1,4 @@
-﻿namespace CasualtiesMiner.Uploader.Wiki;
+namespace CasualtiesMiner.Uploader.Wiki;
 
 /// <summary>
 /// Hand-authored wiki pages (Lua router, locale resolver, trigger page).
@@ -220,6 +220,7 @@ public static class WikiContent
         local liquidBucket = require("Module:LiquidBucket")
         local bit32 = require( 'bit32' )
         local yesNo = require("Module:Yesno")
+        local tmpRenderer = require("Module:TMPRender")
 
         -- if true, enables debug printing. to be used when editing this module.
         local DEBUG = false
@@ -375,12 +376,12 @@ public static class WikiContent
             assert_not_nil(args.rows, "'rows' was not provided")
             args.delimiter = args.delimiter or ":"
 
-            local cont = mw.html.create("table")
+            local containerEl = mw.html.create("table")
 
-            if args.caption then cont:tag("caption"):wikitext(args.caption) end
+            if args.caption then containerEl:tag("caption"):wikitext(args.caption) end
 
             if args.headers then
-                local headRow = cont:tag("tr")
+                local headRow = containerEl:tag("tr")
                 for _, item in ipairs(args.headers) do
                     headRow:tag("th"):wikitext(item)
                 end
@@ -414,13 +415,13 @@ public static class WikiContent
 
             -- generate row elements
             for _, row in ipairs(rows) do
-                local rowEl = cont:tag("tr")
+                local rowEl = containerEl:tag("tr")
                 for _, value in ipairs(row) do
                     rowEl:tag("td"):wikitext(value)
                 end
             end
 
-            return cont
+            return containerEl
         end
 
         -- =================================================
@@ -454,7 +455,7 @@ public static class WikiContent
             local resArgs = {
                 item_id = itemId,
                 display_name = localeItem and localeItem.name or itemId,
-                description = localeItem and localeItem.description or "",
+                description = tmpRenderer.render_tmp_text(localeItem and localeItem.description or "")
             }
             local yesTemplate = tostring(frame:expandTemplate{ title = "yes" })
 
@@ -635,9 +636,9 @@ public static class WikiContent
                         return args.value
                     end
 
-                    function postprocess(args)
-                        if #args.rows < 2 then
-                            for _, row in ipairs(args.rows) do
+                function postprocess(args)
+                        for _, row in ipairs(args.rows) do
+                            if #row < 2 then
                                 -- set 1 amount to columns where amount is not set. 1 is the default.
                                 row[2] = 1
                             end
@@ -696,6 +697,7 @@ public static class WikiContent
         end
 
         return p
+        
         """;
 
     public const string RouterItemModule =
@@ -744,19 +746,6 @@ public static class WikiContent
 
         local function firstRow(result)
             return result and result[1] or nil
-        end
-
-        local function colorSwatch(hex)
-            if not hex or hex == "" then return nil end
-            hex = mw.text.trim(tostring(hex))
-            if not hex:match("^#") then
-                hex = "#" .. hex
-            end
-            if not hex:match("^#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?$") then return nil end
-            return string.format(
-                '<div class="liquid-infobox-swatch" style="display:block; width:100%%; max-width:280px; height:10em; min-height:140px; margin:0 auto; background-color:%s; border:2px solid rgba(128,128,128,0.45); border-radius:6px; box-sizing:border-box;"></div>',
-                hex
-            )
         end
 
         local function paramValue(v)
@@ -945,36 +934,174 @@ public static class WikiContent
             local id, amount = entry:match("^([^:]+):?(.*)$")
             id = id or entry
             local n = tonumber(amount) or 1
-            return n, capitalizeFirst(id)
+            return n, id
+        end
+
+        local function formatNumber(value)
+            local n = tonumber(value)
+            if not n then
+                return tostring(value)
+            end
+            if n == math.floor(n) then
+                return string.format("%d", n)
+            end
+            local s = string.format("%.4f", n):gsub("0+$", ""):gsub("%.$", "")
+            return s
+        end
+
+        local function qualityDisplayName(qualityId, lang)
+            local key = "cq" .. qualityId
+
+            local label = Locale.ui(key, lang)
+            if label ~= key then
+                return label
+            end
+
+            return capitalizeFirst(qualityId)
+        end
+
+        local function formatItemIconLink(itemId, linkTitle)
+            linkTitle = linkTitle or itemId
+            return "[[File:" .. itemId .. ".png|16x16px|class=pixelated]]"
+        end
+
+        local function fetchLiquidColor(liquidId)
+            if not liquidId or liquidId == "" then
+                return nil
+            end
+
+            local res = bucket("liquid")
+                .select("liquid_id", "color")
+                .where("liquid_id", liquidId)
+                .run()
+
+            local row = res and res[1]
+            if not row or not row.color then
+                return nil
+            end
+
+            local hex = mw.text.trim(tostring(row.color)):gsub("^#", "")
+            if hex == "" then
+                return nil
+            end
+
+            return "#" .. hex
         end
 
         local function formatIngredientName(ingredient, lang, ui)
+            local isLiquid = ingredient["recipe_ingridient.is_liquid"]
             local specific = ingredient["recipe_ingridient.specific"]
             local specificId = ingredient["recipe_ingridient.specific_id"] or ""
-            if specific and specificId ~= "" then
-                local item = Locale.getItem(specificId, lang)
-                return item and item.name or specificId
-            end
 
-            local quality = ingredient["recipe_ingridient.quality"]
-            if type(quality) == "table" and #quality > 0 then
-                local n, id = qualityLabel(quality[1])
-                if id then
-                    return (ui["recipe.any_item_with"] or "Any item with ")
-                        .. string.format(ui["recipe.quality"] or "(%d) %s quality", n, id)
+            if specific and specificId ~= "" then
+                local object
+
+                if isLiquid then
+                    object = Locale.getLiquid(specificId, lang)
+                    local name = object and object.name or specificId
+
+                    return name
+                else
+                    object = Locale.getItem(specificId, lang)
+                    local name = object and object.name or specificId
+
+                    return formatItemIconLink(specificId, name) .. " " .. name
                 end
             end
-            return ui["recipe.any_item_with"] or "Any item"
+
+            if ingredient["recipe_ingridient.is_liquid"] == true then
+                return ui["recipe.any_liquid_with"] or "Any liquid with"
+            end
+
+            return ui["recipe.any_item_with"] or "Any item with "
         end
 
-        local function formatIngredientDetail(ingredient, ui)
-            local minCond = tonumber(ingredient["recipe_ingridient.minimum_condition"])
-            if minCond and minCond < 1 then
-                local pct = math.floor(minCond * 100 + 0.5)
-                local template = ui["recipe.condition_at_least"] or "At least %d%% condition"
-                return string.format(template, pct)
+        local function formatIngredientDetail(ingredient, lang, ui)
+            local strings = {}
+            local specific = ingredient["recipe_ingridient.specific"]
+            local specificId = ingredient["recipe_ingridient.specific_id"] or ""
+            local isLiquid = ingredient["recipe_ingridient.is_liquid"] == true
+            local quality = ingredient["recipe_ingridient.quality"]
+
+            local entries = {}
+
+            if type(quality) == "table" then
+                entries = quality
+            elseif type(quality) == "string" and quality ~= "" then
+                entries = { quality }
             end
-            return nil
+
+            if not specific or specificId == "" then
+                if #entries > 0 then
+                    local n, qualityId = qualityLabel(entries[1])
+
+                    if qualityId then
+                        local name = qualityDisplayName(qualityId, lang)
+
+                        if isLiquid then
+                            local template = ui["recipe.liquid_quality"] or "Total (%s) %s quality"
+
+                            strings[#strings + 1] = "<span style='color: #aaaaaa;'>- "
+                                .. string.format(template, formatNumber(n), name) .. "</span>"
+                        else
+                            local template = ui["recipe.quality"] or "(%s) %s quality"
+
+                            strings[#strings + 1] = "<span style='color: #aaaaaa;'>- "
+                                .. string.format(template, formatNumber(n), name) .. "</span>"
+                        end
+                    end
+                end
+            end
+
+            local minCond = tonumber(ingredient["recipe_ingridient.minimum_condition"])
+
+            if isLiquid then
+                if minCond and minCond > 0 then
+                    local template = ui["recipe.liquid_condition_at_least"] or "At least %s mL"
+
+                    strings[#strings + 1] = "<span style='color: #aaaaaa;'>- "
+                        .. string.format(template, formatNumber(minCond)) .. "</span>"
+                end
+            else
+                if minCond and minCond > 0 then
+                    local pct = math.floor(minCond * 100 + 0.5)
+                    local template = ui["recipe.condition_at_least"] or "At least %d%% condition"
+
+                    strings[#strings + 1] = "<span style='color: #aaaaaa;'>- "
+                        .. string.format(template, pct) .. "</span>"
+                end
+            end
+
+            if #strings == 0 then
+                return nil
+            end
+
+            return table.concat(strings, "<br/>")
+        end
+
+        local function formatResultDetail(recipe, ui)
+            local footLines = {
+                { key = "recipe.condition",   value = recipe["recipe_result.result_condition"], fallback = "Condition: %d" },
+                { key = "recipe.amount",      value = recipe["recipe_result.amount"],           fallback = "Amount: %d" },
+                { key = "recipe.intRequired", value = recipe["int"],                            fallback = "INT needed: %d" },
+            }
+
+            local parts = {}
+
+            for _, line in ipairs(footLines) do
+                local num = tonumber(line.value)
+                if num then
+                    local template = ui[line.key] or line.fallback
+                    
+                    if line.key == "recipe.intRequired" then
+                        parts[#parts + 1] = "<span style='color: #00ff00;'>" .. string.format(template, num) .. "</span>"
+                    else
+                        parts[#parts + 1] = "<span>" .. string.format(template, num) .. "</span>"
+                    end
+                end
+            end
+
+            return table.concat(parts, "<br/>")
         end
 
         function p.main(frame)
@@ -987,24 +1114,38 @@ public static class WikiContent
                 return "[[Category:Errors]]<strong>RecipeBucket:</strong> missing recipe id."
             end
 
-            local row = p.fetchResultItem(recipeId)
-            if not row then
+            local result = p.fetchResultItem(recipeId)
+            if not result then
                 return "[[Category:Errors]]<strong>RecipeBucket:</strong> no Bucket row for '" .. recipeId .. "'."
             end
 
             local lang = Locale.resolveLang(frame)
             local ui = Locale.wikiUi(lang)
 
-            local resultId = row["recipe_result.id"]
-            local isLiquid = row["recipe_result.is_liquid"]
+            local resultId = result["recipe_result.id"]
+            local amount = result["recipe_result.amount"]
+            local resultCondition = result["recipe_result.result_condition"]
+            local isLiquid = result["recipe_result.is_liquid"]
 
             local object
+            local count
             if isLiquid == true then
                 object = Locale.getLiquid(resultId, lang)
+                if resultCondition > 1 then
+                    count = string.format(ui["recipe.countLiquid"] or "(%dmL)", resultCondition)
+                end
             else
                 object = Locale.getItem(resultId, lang)
+                if amount > 1 then
+                    count = string.format(ui["recipe.count"] or "(x%d)", amount)
+                end
             end
+
             local name = object and object.name or resultId
+
+            if count then
+                name = name .. " " .. count
+            end
 
             local ingredients = p.fetchIngridients(recipeId)
 
@@ -1015,32 +1156,73 @@ public static class WikiContent
             headContainer:tag("span")
                 :addClass("cu-recipe-head-text")
                 :wikitext(name)
-            headContainer:tag("div")
-                :addClass("cu-recipe-head-image")
-                :wikitext("[[File:" .. resultId .. ".png|48x48px]]")
+            local headImage = headContainer:tag("div"):addClass("cu-recipe-head-image")
+
+            local liquidColor = isLiquid == true and fetchLiquidColor(resultId) or nil
+            if liquidColor then
+                headImage:tag("div")
+                    :addClass("cu-recipe-head-liquid")
+                    :css("background-color", liquidColor)
+                    :wikitext("&nbsp;")
+            else
+                headImage:wikitext("[[File:" .. resultId .. ".png|48x48px]]")
+            end
 
             local bodyContainer = divContainer:tag("div"):addClass("cu-recipe-body")
             bodyContainer:tag("div")
                 :addClass("cu-recipe-body-title")
                 :wikitext(ui["recipe.ingredients"] or "Ingredients")
 
+            local grouped = {}
+            local order = {}
+
             for _, ingredient in ipairs(ingredients) do
-                local block = bodyContainer:tag("div"):addClass("cu-recipe-ingredient")
-                block:tag("div")
-                    :addClass("cu-recipe-ingredient-name")
-                    :wikitext("- " .. formatIngredientName(ingredient, lang, ui))
-                local detail = formatIngredientDetail(ingredient, ui)
-                if detail then
-                    block:tag("div")
-                        :addClass("cu-recipe-ingredient-detail")
-                        :wikitext(detail)
+                local nameHtml = formatIngredientName(ingredient, lang, ui)
+                local detailHtml = formatIngredientDetail(ingredient, lang, ui)
+                local key = nameHtml .. "\0" .. (detailHtml or "")
+
+                local entry = grouped[key]
+                if entry then
+                    entry.count = entry.count + 1
+                else
+                    entry = { name = nameHtml, detail = detailHtml, count = 1 }
+                    grouped[key] = entry
+                    order[#order + 1] = key
                 end
             end
 
-            divContainer:tag("div")
-                :addClass("cu-recipe-foot")
-                :tag("span")
-                :wikitext(name)
+            for _, key in ipairs(order) do
+                local entry = grouped[key]
+                local block = bodyContainer:tag("div"):addClass("cu-recipe-ingredient")
+
+                local nameText = entry.name
+                if entry.count > 1 then
+                    nameText = nameText .. " " .. string.format(ui["recipe.count"] or "(x%d)", entry.count)
+                end
+
+                block:tag("div")
+                    :addClass("cu-recipe-ingredient-name")
+                    :wikitext(nameText)
+
+                if entry.detail then
+                    block:tag("div")
+                        :addClass("cu-recipe-ingredient-detail")
+                        :wikitext(entry.detail)
+                end
+            end
+
+            local footerContainer = divContainer:tag("div"):addClass("cu-recipe-foot")
+            
+            footerContainer:tag("div")
+                :addClass("cu-recipe-foot-title")
+                :wikitext(ui["recipe.info"] or "Info")
+            local block = footerContainer:tag("div"):addClass("cu-recipe-foot-attributes")
+
+            local resultInfo = formatResultDetail(result, ui)
+            if resultInfo then
+                    block:tag("div")
+                         :wikitext(resultInfo)
+            end
         
             return tostring(divContainer)
         end
@@ -1665,3 +1847,112 @@ public static class WikiContent
         {{#invoke:BodyFieldData|putAll}}
         """;
 }
+
+/*
+TMPRenderer
+
+local p = {}
+
+function p.render_tmp_text_page(frame)
+    local raw_text = frame.args['raw_text']
+    
+    if raw_text == nil then return '!!!ERROR!!!' end
+    
+    return p.render_tmp_text(raw_text)
+end
+    
+function p.render_tmp_text(raw_text)
+    local root = mw.html.create('span')
+    
+    local foreground = nil
+    local bold = false
+    local italic = false
+    local font_size_pct = 100
+    
+    current_index = 1
+    
+    while current_index <= #raw_text do
+        local open_bracket_index = string.find(raw_text, '<', current_index, true)
+        local closing_bracket_index = nil
+        
+        if open_bracket_index ~= nil then
+            closing_bracket_index = string.find(raw_text, '>', open_bracket_index + 1, true)
+        end
+        
+        local found_tag = closing_bracket_index ~= nil
+        local run_length = (found_tag and open_bracket_index or (#raw_text + 1)) - current_index
+        
+        if run_length > 0 then
+            local sub_text = string.sub(raw_text, current_index, current_index + run_length - 1)
+            local run = root:tag('span'):wikitext(sub_text)
+            if bold then run = run:css('font-weight', 'bold') end
+            if italic then run = run:css('font-style', 'italic') end
+            if font_size_pct and font_size_pct ~= 100 then run = run:css('font-size', tostring(font_size_pct / 100) .. 'em') end
+            if foreground then run = run:css('color', foreground) end
+        end
+        
+        current_index = current_index + run_length
+        
+        if found_tag then
+            local tag_contents_length = closing_bracket_index - open_bracket_index - 1
+            local tag = string.sub(raw_text, open_bracket_index + 1, open_bracket_index + tag_contents_length)
+            
+            local should_print_raw = false
+            
+            if tag == 'b' then
+                bold = true
+            elseif tag == '/b' then
+                bold = false
+            elseif tag == 'i' then
+                italic = true
+            elseif tag == '/i' then
+                italic = false
+            elseif tag == '/color' then
+                foreground = nil
+            else
+                should_print_raw = true
+            end
+            
+            if should_print_raw then
+                local _, _, size = string.find(tag, '^size=([0-9]*)%%$')
+                if size ~= nil and tonumber(size) ~= nil then
+                    font_size_pct = tonumber(size)
+                    should_print_raw = false
+                end
+            end
+            
+            if should_print_raw then
+                local _, _, color = string.find(tag, '^color="([a-z]*)"$')
+                if color ~= nil then
+                    foreground = color
+                    should_print_raw = false
+                end
+            end
+            
+            if should_print_raw then
+                local _, _, color = string.find(tag, '^color=#([0-9a-fA-F]*)$')
+                if color ~= nil and (#color == 6 or #color == 8) then
+                    foreground = '#' .. color
+                    should_print_raw = false
+                end
+            end
+            
+            if should_print_raw then
+                local sub_text = string.sub(raw_text, open_bracket_index, open_bracket_index + tag_contents_length + 1)
+                local run = root:tag('span'):wikitext(sub_text)
+                if bold then run = run:css('font-weight', 'bold') end
+                if italic then run = run:css('font-style', 'italic') end
+                if font_size_pct and font_size_pct ~= 100 then run = run:css('font-size', tostring(font_size_pct / 100) .. 'em') end
+                if foreground then run = run:css('color', foreground) end
+            end
+            
+            current_index = current_index + tag_contents_length + 2
+        end
+    end
+    
+    local final_text, _ = string.gsub(tostring(root), '\n', '<br />')
+    return final_text
+end
+
+return p
+*/
