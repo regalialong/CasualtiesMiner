@@ -254,7 +254,8 @@ public static class Program
         data = await client.EditAsync(
             WikiContent.LiquidDataModuleTitle,
             WikiGenerator.BuildLiquidDataModule(liquidRows),
-            "Regenerate liquid data", options.DryRun);
+            "Regenerate liquid data",
+            options.DryRun);
         Console.WriteLine($"  {WikiContent.LiquidDataModuleTitle}: {data}");
 
         Console.WriteLine("== Moodles ==");

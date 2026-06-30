@@ -1,5 +1,4 @@
-﻿using CasualtiesMiner.Dumper.Parsing;
-using CasualtiesMiner.Shared.Models;
+﻿using CasualtiesMiner.Shared.Models;
 using ICSharpCode.Decompiler.CSharp;
 using Mono.Cecil.Cil;
 
@@ -27,8 +26,8 @@ public sealed partial class Dumper
             return [];
         }
 
-        ILInstructionFormat.WriteMethodIl(Console.Out, setupMethod, markAddMoodleCalls: true);
-        Console.WriteLine();
+        //ILInstructionFormat.WriteMethodIl(Console.Out, setupMethod, markAddMoodleCalls: true);
+        //Console.WriteLine();
 
         var recipeCtor = recipeType.Methods.First(m => m.IsConstructor);
         var instructions = setupMethod.Body.Instructions;

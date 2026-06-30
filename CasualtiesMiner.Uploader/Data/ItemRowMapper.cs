@@ -50,7 +50,8 @@ internal static class ItemRowMapper
             ScaleWeightWithCondition = item.scaleWeightWithCondition,
             IgnoreDepression = item.ignoreDepression,
 
-            DecayMinutes = item.decayMinutes,
+            RotSpeed = (double)(decimal)item.rotSpeed,
+            DecayMinutes = (double)(decimal)item.decayMinutes,
             DecayInfo = item.decayInfo,
             Rec = item.rec?.min ?? 0,
 
@@ -96,7 +97,6 @@ internal static class ItemRowMapper
 
         return tags
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            // Guard against the dumper currently emitting "System.String[]" for the tags field.
             .Where(tag => !tag.Contains("System.String", StringComparison.Ordinal))
             .Distinct(StringComparer.Ordinal)
             .ToArray();

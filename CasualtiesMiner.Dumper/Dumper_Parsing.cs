@@ -316,21 +316,6 @@ public sealed partial class Dumper
         return [];
     }
 
-    private static string[]? GetStringArray(Dictionary<string, object?> dictionary, string key)
-    {
-        if (!dictionary.TryGetValue(key, out var value) || value is null)
-        {
-            return null;
-        }
-
-        return value switch
-        {
-            string[] array => array,
-            string text => text.Split(','),
-            _ => null
-        };
-    }
-
     private static object WarnUnhandled(TypeReference type, Instruction inst,
         string fieldName)
     {

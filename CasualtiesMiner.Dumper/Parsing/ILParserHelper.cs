@@ -1,3 +1,4 @@
+﻿using System.Globalization;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 
@@ -83,6 +84,34 @@ internal static class ILParserHelper
         return $"var{index}";
     }
 
+    public static bool TryGetFieldAccessChainStart(
+        IList<Instruction> instructions,
+        int index,
+        out Instruction chainStart)
+    {
+        chainStart = null!;
+
+        if (index >= instructions.Count)
+        {
+            return false;
+        }
+
+        var ins = instructions[index];
+        if (ins.OpCode.Code == Code.Ldsfld)
+        {
+            chainStart = ins;
+            return true;
+        }
+
+        if (ins.OpCode.Code == Code.Ldarg_0 && ins.Next?.OpCode.Code == Code.Ldfld)
+        {
+            chainStart = ins;
+            return true;
+        }
+
+        return false;
+    }
+
     public static bool TryReadFieldChain(
         Instruction start,
         out string path,
@@ -94,6 +123,15 @@ internal static class ILParserHelper
         afterChain = null;
 
         var ins = start;
+
+        if (ins.OpCode.Code == Code.Ldsfld && ins.Operand is FieldReference staticField)
+        {
+            path = FormatStaticFieldPath(staticField);
+            leaf = staticField;
+            afterChain = ins.Next;
+            return true;
+        }
+
         if (ins.OpCode.Code == Code.Ldarg_0)
         {
             ins = ins.Next;
@@ -113,6 +151,11 @@ internal static class ILParserHelper
             ins = ins.Next;
         }
 
+        while (ins is not null && TryReadPropertyGetter(ref ins, out var propertyName))
+        {
+            parts.Add(propertyName);
+        }
+
         if (parts.Count == 0)
         {
             return false;
@@ -122,6 +165,102 @@ internal static class ILParserHelper
         afterChain = ins;
 
         return true;
+    }
+
+    public static bool TryReadFieldChainAtIndex(
+        IList<Instruction> instructions,
+        int index,
+        out string path,
+        out int endExclusive)
+    {
+        path = "";
+        endExclusive = index;
+
+        if (index >= instructions.Count)
+        {
+            return false;
+        }
+
+        var i = index;
+
+        if (instructions[i].OpCode.Code == Code.Ldsfld && instructions[i].Operand is FieldReference staticField)
+        {
+            path = FormatStaticFieldPath(staticField);
+            endExclusive = i + 1;
+            return true;
+        }
+
+        if (instructions[i].OpCode.Code == Code.Ldarg_0)
+        {
+            i++;
+        }
+
+        var parts = new List<string>();
+        while (i < instructions.Count && instructions[i].OpCode.Code == Code.Ldfld)
+        {
+            parts.Add(((FieldReference)instructions[i].Operand!).Name);
+            i++;
+        }
+
+        while (i < instructions.Count
+               && instructions[i].OpCode.Code is (Code.Call or Code.Callvirt)
+               && instructions[i].Operand is MethodReference getter
+               && getter.Parameters.Count == 0
+               && getter.Name.StartsWith("get_", StringComparison.Ordinal))
+        {
+            parts.Add(getter.Name["get_".Length..]);
+            i++;
+        }
+
+        if (parts.Count == 0)
+        {
+            return false;
+        }
+
+        path = string.Join(".", parts);
+        endExclusive = i;
+        return true;
+    }
+
+    public static bool TryParseCompareRhsExpression(
+        IList<Instruction> instructions,
+        int rhsStartIndex,
+        IReadOnlyDictionary<int, string> localPaths,
+        out string rhsExpression,
+        out int branchIndex)
+    {
+        rhsExpression = "";
+        branchIndex = -1;
+
+        for (var j = rhsStartIndex; j < instructions.Count; j++)
+        {
+            if (!IsConditionalBranch(instructions[j]))
+            {
+                continue;
+            }
+
+            if (j <= rhsStartIndex)
+            {
+                return false;
+            }
+
+            var length = j - rhsStartIndex;
+            var slice = new Instruction[length];
+            for (var k = 0; k < length; k++)
+            {
+                slice[k] = instructions[rhsStartIndex + k];
+            }
+
+            if (!ILComplexExpressionParser.TryFormat(slice, localPaths, out rhsExpression))
+            {
+                return false;
+            }
+
+            branchIndex = j;
+            return true;
+        }
+
+        return false;
     }
 
     public static bool IsStackCompare(Code code) =>
@@ -219,88 +358,6 @@ internal static class ILParserHelper
         return BranchOperatorOnFallThrough(branch.OpCode.Code);
     }
 
-    public static bool TryFormatFieldCompare(
-        IList<Instruction> instructions,
-        int callIndex,
-        Instruction start,
-        out string expression)
-    {
-        expression = "";
-
-        if (!TryReadFieldChain(start, out var path, out var leaf, out var afterChain))
-        {
-            return false;
-        }
-
-        if (!TryReadFieldCompare(instructions, callIndex, afterChain, leaf, out var op, out var literal))
-        {
-            return false;
-        }
-
-        expression = $"{path} {op} {literal}";
-
-        return true;
-    }
-
-    public static bool TryFormatLocalCompare(
-        IList<Instruction> instructions,
-        int callIndex,
-        Instruction start,
-        IReadOnlyDictionary<int, string> localPaths,
-        out string expression)
-    {
-        expression = "";
-
-        var literalInsn = start.Next;
-        if (literalInsn is null || !TryFormatLiteral(literalInsn, null, out var literal))
-        {
-            return false;
-        }
-
-        var branch = literalInsn.Next;
-        if (branch is null)
-        {
-            return false;
-        }
-
-        var op = BranchOperatorForGuard(instructions, branch, callIndex);
-        if (op.Length == 0)
-        {
-            return false;
-        }
-
-        expression = $"{FormatLocalName(start, localPaths)} {op} {literal}";
-
-        return true;
-    }
-
-    private static bool TryReadFieldCompare(
-        IList<Instruction> instructions,
-        int callIndex,
-        Instruction? afterChain,
-        FieldReference? leaf,
-        out string op,
-        out string literal)
-    {
-        op = "";
-        literal = "";
-
-        if (afterChain is null || !TryFormatLiteral(afterChain, leaf, out literal))
-        {
-            return false;
-        }
-
-        var branch = afterChain.Next;
-        if (branch is null)
-        {
-            return false;
-        }
-
-        op = BranchOperatorForGuard(instructions, branch, callIndex);
-
-        return op.Length > 0;
-    }
-
     public static bool TryFormatLiteral(Instruction instruction, FieldReference? leaf, out string literal)
     {
         literal = "";
@@ -328,13 +385,13 @@ internal static class ILParserHelper
         return true;
     }
 
-    public static bool TryParseFieldTruthyGuard(
+    public static bool TryParseFieldBooleanGuard(
         IList<Instruction> instructions,
         int index,
-        out string path,
+        out string expression,
         out int endExclusive)
     {
-        path = "";
+        expression = "";
         endExclusive = index;
 
         if (index >= instructions.Count)
@@ -343,21 +400,35 @@ internal static class ILParserHelper
         }
 
         var i = index;
-        if (instructions[i].OpCode.Code == Code.Ldarg_0)
+        string path;
+
+        if (instructions[i].OpCode.Code == Code.Ldsfld && instructions[i].Operand is FieldReference staticField)
         {
+            path = FormatStaticFieldPath(staticField);
             i++;
         }
-
-        var parts = new List<string>();
-        while (i < instructions.Count && instructions[i].OpCode.Code == Code.Ldfld)
+        else
         {
-            parts.Add(((FieldReference)instructions[i].Operand!).Name);
-            i++;
-        }
+            if (instructions[i].OpCode.Code == Code.Ldarg_0)
+            {
+                i++;
+            }
 
-        if (parts.Count == 0)
-        {
-            return false;
+            var parts = new List<string>();
+            while (i < instructions.Count && instructions[i].OpCode.Code == Code.Ldfld)
+            {
+                parts.Add(((FieldReference)instructions[i].Operand!).Name);
+                i++;
+            }
+
+            TryAppendBoolPropertyGetter(instructions, ref i, parts);
+
+            if (parts.Count == 0)
+            {
+                return false;
+            }
+
+            path = string.Join(".", parts);
         }
 
         i = SkipTruthyConversions(instructions, i);
@@ -366,15 +437,58 @@ internal static class ILParserHelper
             return false;
         }
 
-        if (instructions[i].OpCode.Code is not (Code.Brfalse or Code.Brfalse_S))
+        switch (instructions[i].OpCode.Code)
+        {
+            case Code.Brfalse:
+            case Code.Brfalse_S:
+                expression = path;
+                endExclusive = i + 1;
+                return true;
+            case Code.Brtrue:
+            case Code.Brtrue_S:
+                expression = $"{path} == false";
+                endExclusive = i + 1;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private static bool TryReadPropertyGetter(ref Instruction? instruction, out string propertyName)
+    {
+        propertyName = "";
+
+        if (instruction is null
+            || instruction.OpCode.Code is not (Code.Call or Code.Callvirt)
+            || instruction.Operand is not MethodReference method
+            || method.Parameters.Count != 0
+            || !method.Name.StartsWith("get_", StringComparison.Ordinal))
         {
             return false;
         }
 
-        path = string.Join(".", parts);
-        endExclusive = i + 1;
-
+        propertyName = method.Name["get_".Length..];
+        instruction = instruction.Next;
         return true;
+    }
+
+    private static void TryAppendBoolPropertyGetter(
+        IList<Instruction> instructions,
+        ref int index,
+        List<string> parts)
+    {
+        if (index >= instructions.Count
+            || instructions[index].OpCode.Code is not (Code.Call or Code.Callvirt)
+            || instructions[index].Operand is not MethodReference method
+            || method.ReturnType.FullName != "System.Boolean"
+            || method.Parameters.Count != 0
+            || !method.Name.StartsWith("get_", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        parts.Add(method.Name["get_".Length..]);
+        index++;
     }
 
     private static int SkipTruthyConversions(IList<Instruction> instructions, int index)
@@ -398,7 +512,7 @@ internal static class ILParserHelper
                 case Code.Callvirt:
                     if (instructions[index].Operand is MethodReference method
                         && method.ReturnType.FullName == "System.Boolean"
-                        && method.Parameters.Count == 1)
+                        && (method.Parameters.Count == 0 || method.Parameters.Count == 1))
                     {
                         index++;
                         continue;
@@ -413,5 +527,9 @@ internal static class ILParserHelper
         return index;
     }
 
-    public static string FormatFloatLiteral(float value) => $"{value:G}f";
+    public static string FormatFloatLiteral(float value) =>
+        string.Create(CultureInfo.InvariantCulture, $"{value:G}f");
+
+    public static string FormatStaticFieldPath(FieldReference field) =>
+        $"{field.DeclaringType.Name}.{field.Name}";
 }

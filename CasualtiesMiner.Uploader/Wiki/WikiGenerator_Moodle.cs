@@ -33,6 +33,7 @@ internal static partial class WikiGenerator
     private static IEnumerable<(string Key, string Value)> EnumerateMoodleFields(MoodleRow row)
     {
         yield return ("icon", LuaFormat.String(row.Icon));
+        yield return ("icon_src_size", LuaFormat.Int(row.IconSrcSize));
         yield return ("locale_id", LuaFormat.String(row.LocaleId));
 
         if (!string.IsNullOrWhiteSpace(row.DescLocaleKey))

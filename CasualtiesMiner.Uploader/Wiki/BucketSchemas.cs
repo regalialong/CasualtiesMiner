@@ -63,6 +63,7 @@ internal static class BucketSchemas
             "destroy_at_zero_condition":   { "type": "BOOLEAN" },
             "scale_weight_with_condition": { "type": "BOOLEAN" },
             "ignore_depression":           { "type": "BOOLEAN" },
+            "rot_speed":                   { "type": "DOUBLE" },
             "decay_minutes":               { "type": "DOUBLE" },
             "decay_info":                  { "type": "INTEGER" },
             "rec":                         { "type": "INTEGER" },
@@ -162,6 +163,7 @@ internal static class BucketSchemas
         {
             "locale_id":               { "type": "TEXT" },
             "icon":                    { "type": "TEXT" },
+            "icon_src_size":           { "type": "INTEGER", "index": false },
             "desc_locale_key":         { "type": "TEXT", "index": false },
             "precondition_for_moodle": { "type": "TEXT", "index": false },
             "precondition_display":    { "type": "TEXT", "index": false },

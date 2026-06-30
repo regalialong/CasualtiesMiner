@@ -1,4 +1,4 @@
-namespace CasualtiesMiner.Shared.Models;
+﻿namespace CasualtiesMiner.Shared.Models;
 
 public sealed class MoodleInfo
 {

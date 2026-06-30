@@ -15,4 +15,5 @@ internal sealed record MoodleRow
     public required bool Critical { get; init; }
     public required string? CriticalExpr { get; init; }
     public required bool ChippedOnly { get; init; }
+    public required int IconSrcSize { get; init; }
 }

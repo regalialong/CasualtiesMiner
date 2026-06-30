@@ -1,11 +1,10 @@
 using Mono.Cecil.Cil;
-using Mono.Collections.Generic;
 
 namespace CasualtiesMiner.Dumper.Parsing;
 
 internal static partial class LimbAggregateLocalAnalyzer
 {
-    public static IReadOnlyDictionary<int, string> Analyze(Collection<Instruction> instructions)
+    public static IReadOnlyDictionary<int, string> Analyze(IList<Instruction> instructions)
     {
         var map = new Dictionary<int, string>();
 
@@ -32,7 +31,7 @@ internal static partial class LimbAggregateLocalAnalyzer
     }
 
     private static bool TryParseLimbLoopFlag(
-        Collection<Instruction> instructions,
+        IList<Instruction> instructions,
         int stlocIndex,
         out string path)
     {
@@ -84,7 +83,7 @@ internal static partial class LimbAggregateLocalAnalyzer
     }
 
     private static bool TryParseMaxAccumulation(
-        Collection<Instruction> instructions,
+        IList<Instruction> instructions,
         int stlocIndex,
         out string fieldName)
     {

@@ -2,6 +2,9 @@
 
 namespace CasualtiesMiner.Uploader.Data;
 
+/// <summary>
+/// Converts dumped <see cref="RecipeItemRow"/> instances into wiki-ready <see cref="RecipeItemRow"/>s.
+/// </summary>
 internal static class RecipeItemRowMapper
 {
     public static RecipeItemRow[] Map(Recipe recipe)

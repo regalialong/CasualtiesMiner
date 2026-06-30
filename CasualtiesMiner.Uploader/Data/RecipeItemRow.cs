@@ -1,5 +1,8 @@
 ﻿namespace CasualtiesMiner.Uploader.Data;
 
+/// <summary>
+/// Wiki-ready moodle row for <c>Module:Recipe/data</c>.
+/// </summary>
 internal sealed record RecipeItemRow
 {
     public required string RecipeId { get; init; }

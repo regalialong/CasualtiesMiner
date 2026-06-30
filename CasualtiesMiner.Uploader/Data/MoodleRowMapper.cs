@@ -1,8 +1,12 @@
-﻿using CasualtiesMiner.Shared.Models;
+﻿using CasualtiesMiner.Shared;
+using CasualtiesMiner.Shared.Models;
 using CasualtiesMiner.Uploader.Wiki;
 
 namespace CasualtiesMiner.Uploader.Data;
 
+/// <summary>
+/// Converts dumped <see cref="MoodleRow"/> instances into wiki-ready <see cref="MoodleRow"/>s.
+/// </summary>
 internal static class MoodleRowMapper
 {
     public static MoodleRow Map(MoodleInfo moodle)
@@ -22,6 +26,7 @@ internal static class MoodleRowMapper
             Critical = moodle.critical,
             CriticalExpr = moodle.criticalExpr,
             ChippedOnly = moodle.chippedOnly,
+            IconSrcSize = MoodleIconSizes.GetSourceSize(moodle.icon),
         };
     }
 }

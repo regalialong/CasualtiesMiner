@@ -27,7 +27,7 @@ public sealed partial class Dumper
         if (setupMethod is null || globalField is null)
             return [];
 
-        //ILInstructionFormat.WriteMethodIl(Console.Out, setupMethod, markAddMoodleCalls: true);
+        //ILInstructionFormat.WriteMethodIl(Console.Out, setupMethod);
         //Console.WriteLine();
 
         var itemInfoCtor = itemInfoType.Methods.First(m => m.IsConstructor);
@@ -116,8 +116,7 @@ public sealed partial class Dumper
             item.ignoreDepression = GetValue<bool>(itemDict, "ignoreDepression");
             item.value = GetValue<int>(itemDict, "value");
             item.wearableVisualOffset = GetValue(itemDict, "wearableVisualOffset", 5);
-            item.tags = GetStringArray(itemDict, "actualTags")?.ToString()
-                ?? GetStringArray(itemDict, "tags")?.ToString();
+            item.tags = GetValue<string>(itemDict, "tags");
             item.decayInfo = GetValue<byte>(itemDict, "decayInfo");
             item.decayMinutes = GetValue<float>(itemDict, "decayMinutes");
             item.rec = new Recognition

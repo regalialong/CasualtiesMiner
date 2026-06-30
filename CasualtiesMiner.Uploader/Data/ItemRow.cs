@@ -10,11 +10,6 @@ internal sealed record ItemRow
     public required string Category { get; init; }
 
     /// <summary>
-    /// Stable, language-neutral wiki title (<c>Item:bandage</c>).
-    /// </summary>
-    public string PageTitle => "Item:" + ItemId;
-
-    /// <summary>
     /// One of <c>base</c>, <c>liquid</c>, <c>battery</c>.
     /// </summary>
     public required string Subtype { get; init; }
@@ -35,6 +30,7 @@ internal sealed record ItemRow
     public bool ScaleWeightWithCondition { get; init; }
     public bool IgnoreDepression { get; init; }
 
+    public double RotSpeed { get; init; }
     public double DecayMinutes { get; init; }
     public int DecayInfo { get; init; }
     public int Rec { get; init; }

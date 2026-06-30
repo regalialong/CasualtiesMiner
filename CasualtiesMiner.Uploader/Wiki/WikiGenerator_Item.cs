@@ -33,7 +33,6 @@ internal static partial class WikiGenerator
     private static IEnumerable<(string Key, string Value)> EnumerateItemFields(ItemRow row)
     {
         yield return ("item_id", LuaFormat.String(row.ItemId));
-        yield return ("page", LuaFormat.String(row.PageTitle));
         yield return ("category", LuaFormat.String(row.Category));
         yield return ("subtype", LuaFormat.String(row.Subtype));
         yield return ("obtainable", LuaFormat.Bool(row.Obtainable));
@@ -49,6 +48,7 @@ internal static partial class WikiGenerator
         yield return ("destroy_at_zero_condition", LuaFormat.Bool(row.DestroyAtZeroCondition));
         yield return ("scale_weight_with_condition", LuaFormat.Bool(row.ScaleWeightWithCondition));
         yield return ("ignore_depression", LuaFormat.Bool(row.IgnoreDepression));
+        yield return ("rot_speed", LuaFormat.Num(row.RotSpeed));
         yield return ("decay_minutes", LuaFormat.Num(row.DecayMinutes));
         yield return ("decay_info", LuaFormat.Int(row.DecayInfo));
         yield return ("rec", LuaFormat.Int(row.Rec));

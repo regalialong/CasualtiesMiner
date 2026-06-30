@@ -12,27 +12,32 @@ internal static class MoodleCallParser
     // Moreover, some fields being calculated as arguments in function
     // so it just adds more complexity to the whole thing
     public static MoodleInfo? Parse(
-        Collection<Instruction> instructions,
+        Collection<Instruction> frame,
+        int frameStartIndex,
+        IList<Instruction> fullInstructions,
         MethodReference getMoodleMethod,
         IReadOnlyDictionary<int, string> localPaths)
     {
-        var callIndex = instructions.Count - 1;
-        var argsStartIndex = FindAddMoodleArgsStartIndex(instructions, callIndex);
+        var callIndexInFrame = frame.Count - 1;
+        var globalCallIndex = frameStartIndex + callIndexInFrame;
+
+        var argsStartIndex = FindAddMoodleArgsStartIndex(frame, callIndexInFrame);
         if (argsStartIndex < 0)
         {
             return null;
         }
 
-        var guards = MoodleGuardParser.ParseGuards(instructions, callIndex, argsStartIndex, localPaths).ToList();
+        var globalArgsStartIndex = frameStartIndex + argsStartIndex;
+        var guards = MoodleGuardParser.ParseGuards(fullInstructions, globalCallIndex, globalArgsStartIndex, localPaths).ToList();
 
         var cursor = argsStartIndex + 1;
-        if (cursor >= callIndex)
+        if (cursor >= callIndexInFrame)
         {
             return null;
         }
 
         // get ternary `intensity`, literal, or computed expression (RoundToInt, Clamp)
-        if (!TryParseIntensity(instructions, cursor, callIndex, localPaths, out var intensityText, out cursor))
+        if (!TryParseIntensity(frame, cursor, callIndexInFrame, localPaths, out var intensityText, out cursor))
         {
             return null;
         }
@@ -48,23 +53,23 @@ internal static class MoodleCallParser
             intensityExpr = LimbAggregateLocalAnalyzer.SubstituteLocals(intensityText, localPaths);
         }
 
-        if (cursor >= callIndex || instructions[cursor].OpCode.Code != Code.Ldstr)
+        if (cursor >= callIndexInFrame || frame[cursor].OpCode.Code != Code.Ldstr)
         {
             return null;
         }
 
         // get `icon`
-        var icon = (string)instructions[cursor].Operand!;
+        var icon = (string)frame[cursor].Operand!;
         cursor++;
 
         // get `locale`
-        if (!TryParseLocaleKey(instructions, ref cursor, getMoodleMethod, callIndex, skipSuffix: false, out var localeId))
+        if (!TryParseLocaleKey(frame, ref cursor, getMoodleMethod, callIndexInFrame, skipSuffix: false, out var localeId))
         {
             return null;
         }
 
         // get `locale desc` (may continue with .Replace(...))
-        if (!TryParseLocaleKey(instructions, ref cursor, getMoodleMethod, callIndex, skipSuffix: true, out var descLocaleKey))
+        if (!TryParseLocaleKey(frame, ref cursor, getMoodleMethod, callIndexInFrame, skipSuffix: true, out var descLocaleKey))
         {
             return null;
         }
@@ -72,18 +77,18 @@ internal static class MoodleCallParser
         // get `critical` argument/expression
         var critical = false;
         string? criticalExpr = null;
-        if (cursor < callIndex)
+        if (cursor < callIndexInFrame)
         {
-            if (!TryParseBoolArg(instructions, cursor, out critical, out criticalExpr, out cursor))
+            if (!TryParseBoolArg(frame, cursor, out critical, out criticalExpr, out cursor))
             {
                 return null;
             }
         }
 
         var chippedOnly = false;
-        if (cursor < callIndex && ILInstructionParser.IsLdcI4(instructions[cursor]))
+        if (cursor < callIndexInFrame && ILInstructionParser.IsLdcI4(frame[cursor]))
         {
-            chippedOnly = ILInstructionParser.ParseInt(instructions[cursor]) != 0;
+            chippedOnly = ILInstructionParser.ParseInt(frame[cursor]) != 0;
         }
 
         //Console.WriteLine($"icon: {icon}");
@@ -293,11 +298,6 @@ internal static class MoodleCallParser
         return called.Name == getMoodleMethod.Name
                && called.DeclaringType.FullName == getMoodleMethod.DeclaringType.FullName;
     }
-
-    private static string SubstituteGuards(string guards, IReadOnlyDictionary<int, string> localPaths) =>
-        string.IsNullOrEmpty(guards)
-            ? "none"
-            : LimbAggregateLocalAnalyzer.SubstituteLocals(guards, localPaths);
 
     private static bool TryParseIntensity(
         Collection<Instruction> instructions,
@@ -523,6 +523,11 @@ internal static class MoodleCallParser
 
         return -1;
     }
+
+    private static string SubstituteGuards(string guards, IReadOnlyDictionary<int, string> localPaths) =>
+        string.IsNullOrEmpty(guards)
+            ? "none"
+            : LimbAggregateLocalAnalyzer.SubstituteLocals(guards, localPaths);
 
     private static bool IsCriticalExprStart(Collection<Instruction> instructions, int cursor) =>
         cursor + 1 < instructions.Count

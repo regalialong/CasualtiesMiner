@@ -232,7 +232,7 @@ internal static class WikiContent
             "item_id", "weight", "value", "tags", "qualities", "slot_rotation",
             "usable", "usable_on_limb", "usable_with_lmb", "auto_attack", "only_hold_in_hands",
             "combineable", "destroy_at_zero_condition", "scale_weight_with_condition",
-            "ignore_depression", "decay_minutes", "decay_info", "rec",
+            "ignore_depression", "decay_minutes", "rot_speed", "decay_info", "rec",
             "wearable", "wearable_can_be_held", "wear_slot_id", "desired_wear_limb",
             "wearable_armor", "wearable_isolation", "wear_hit_dur_loss_mult",
             "jump_height_mult_change", "wearable_visual_offset",
@@ -497,25 +497,6 @@ internal static class WikiContent
                     if bit32.btest(decayInfo, 2) then resArgs.no_decay_when_not_worn = yesTemplate end
                     if bit32.btest(decayInfo, 4) then resArgs.no_decay_when_standing_still = yesTemplate end
                     if bit32.btest(decayInfo, 8) then resArgs.battery_charge_as_decay = yesTemplate end
-                elseif key == "wear_slot_id" or key == "desired_wear_limb" then
-                    local wearSlotId = row.wear_slot_id
-                    local desiredWearLimb = row.desired_wear_limb
-
-                    if (wearSlotId and wearSlotId ~= "") or (desiredWearLimb and desiredWearLimb ~= "") then
-                        local wearSlotIdTooltip = "ID of the slot this item can be worn in"
-                        local desiredWearLimbTooltip = "ID of the limb this item can be worn on"
-
-                        local res
-                        if wearSlotId and desiredWearLimb then
-                            res = "{{Tooltip|" .. desiredWearLimb .. "|" .. desiredWearLimbTooltip .. "}} {{Tooltip|" .. wearSlotId .. "|" .. wearSlotIdTooltip .. "}}"
-                        elseif wearSlotId then
-                            res = "{{Tooltip|" .. wearSlotId .. "|" .. wearSlotIdTooltip .. "}}"
-                        else
-                            res = "{{Tooltip|" .. desiredWearLimb .. "|" .. desiredWearLimbTooltip .. "}}"
-                        end
-
-                        resArgs.wearable_on = frame:preprocess("<code>" .. res .. "</code>")
-                    end
                 elseif key == "weight" then
                     local weight = row.weight
                     local scaleWeightWithCondition = yesNo(row.scale_weight_with_condition)
@@ -652,6 +633,14 @@ internal static class WikiContent
                         process = process,
                         postprocess = postprocess
                     })
+                elseif key == "wearable_armor" then
+                    if value ~= 0 then
+                        resArgs.wearable_armor = value
+
+                        local damageReduction = 1 - 1 / (1 + value)
+                        damageReductionFmted = frame:expandTemplate{ title = "ui icon", args = { "armor", round_to_digit(damageReduction, 1) * 100 } }
+                        resArgs.damage_reduction = damageReductionFmted
+                    end
                 else
                     resArgs[key] = paramValue(value)
                 end
@@ -1313,15 +1302,22 @@ internal static class WikiContent
     /// Template:MoodleTable: {{MoodleTable|palpitations|hypotension3:2|pain1}}.
     /// Optional: <c>collapse=1</c> (mw-collapsible), <c>collapsed=1</c> (start collapsed), <c>caption=…</c> (|+ row).
     /// Icon stack + critical bounce/flash: classes in MediaWiki:Gadget-moodle.css (gadget "moodle").
+    /// Icon display size comes from Bucket <c>icon_src_size</c> (20px sprites → 48px, 30px → 64px).
     /// Keep in sync with the live wiki module.
     /// </summary>
     public const string MoodleBucketModule =
         """
         local Locale = require("Module:Locale")
         local getArgs = require("Module:Arguments").getArgs
+        local tmpRenderer = require("Module:TMPRender")
 
         local templateYes = mw.getCurrentFrame():expandTemplate{ title = "Yes" }
         local templateNo = mw.getCurrentFrame():expandTemplate{ title = "No" }
+
+        local MOODLE_ICON_SRC_BASE = 20
+        local MOODLE_ICON_SRC_LARGE = 30
+        local MOODLE_ICON_DISPLAY_BASE = 48
+        local MOODLE_ICON_DISPLAY_LARGE = 64
 
         local p = {}
 
@@ -1345,21 +1341,14 @@ internal static class WikiContent
             return v == "true" or v == "1" or v == "yes"
         end
 
-        local function isCollapsible(args)
-            return toBoolean(args.collapse)
-                or toBoolean(args.collapsible)
-                or toBoolean(args.collapsed)
-        end
-
-        local function buildTableOpen(args)
-            local classes = { "wikitable" }
-            if isCollapsible(args) then
-                classes[#classes + 1] = "mw-collapsible"
+        ---Returns the longest length of any word in sentence `str`.
+        local function maxWordLen(str)
+            local maxLen = 0
+            for _, word in ipairs(mw.text.split(str, " ", true)) do
+                local len = string.len(word)
+                maxLen = len > maxLen and len or maxLen
             end
-            if toBoolean(args.collapsed) then
-                classes[#classes + 1] = "mw-collapsed"
-            end
-            return '{| class="' .. table.concat(classes, " ") .. '"'
+            return maxLen
         end
 
         local function buildTableCaption(args)
@@ -1455,22 +1444,61 @@ internal static class WikiContent
             return icon
         end
 
-        local function fileThumb(frame, filename)
-            return frame:preprocess("[[File:" .. filename .. "|48x48px]]")
+        local function rowIconSrcSize(row)
+            local n = tonumber(row and row.icon_src_size)
+            if n and n > 0 then
+                return n
+            end
+            return MOODLE_ICON_SRC_BASE
+        end
+
+        --- Maps native moodle sprite size (px) to wiki display size. 20→48, 30→64; linear between.
+        local function moodleDisplaySize(srcW, srcH)
+            local src = math.max(tonumber(srcW) or MOODLE_ICON_SRC_BASE, tonumber(srcH) or MOODLE_ICON_SRC_BASE)
+
+            if src <= MOODLE_ICON_SRC_BASE then
+                return MOODLE_ICON_DISPLAY_BASE
+            end
+
+            if src >= MOODLE_ICON_SRC_LARGE then
+                return MOODLE_ICON_DISPLAY_LARGE
+            end
+
+            local t = (src - MOODLE_ICON_SRC_BASE) / (MOODLE_ICON_SRC_LARGE - MOODLE_ICON_SRC_BASE)
+
+            return math.floor(MOODLE_ICON_DISPLAY_BASE + t * (MOODLE_ICON_DISPLAY_LARGE - MOODLE_ICON_DISPLAY_BASE) + 0.5)
+        end
+
+        local function fileThumb(frame, filename, srcSize)
+            local display = moodleDisplaySize(srcSize, srcSize)
+            return frame:preprocess(string.format("[[File:%s|%dx%dpx]]", filename, display, display))
         end
 
         local function iconFile(frame, row, id)
             local bg = moodBackgroundFile(row.intensity)
             local fg = resolveIconFilename(row, id)
+
+            local fgSize = rowIconSrcSize(row)
+            local bgSize = MOODLE_ICON_SRC_BASE
+            local stackSize = moodleDisplaySize(math.max(fgSize, bgSize), math.max(fgSize, bgSize))
+            local stackClass = "cu-moodle-icon-stack"
+
+            if stackSize > MOODLE_ICON_DISPLAY_BASE then
+                stackClass = stackClass .. " cu-moodle-icon-stack--lg"
+            end
+
             local parts = {
-                '<div class="cu-moodle-icon-stack">',
-                '<div class="cu-moodle-bg">' .. fileThumb(frame, bg) .. "</div>",
-                '<div class="cu-moodle-fg">' .. fileThumb(frame, fg) .. "</div>",
+                '<div class="' .. stackClass .. '" style="width:' .. stackSize .. "px;height:" .. stackSize .. 'px">',
+                '<div class="cu-moodle-bg">' .. fileThumb(frame, bg, bgSize) .. "</div>",
+                '<div class="cu-moodle-fg">' .. fileThumb(frame, fg, fgSize) .. "</div>",
             }
+
             if row.critical then
                 parts[#parts + 1] = '<div class="cu-moodle-flash-overlay" aria-hidden="true"></div>'
             end
+
             parts[#parts + 1] = "</div>"
+
             return table.concat(parts, "")
         end
 
@@ -1586,11 +1614,11 @@ internal static class WikiContent
             end
             return table.concat(parts, "<br />")
         end
-
+        
         function p.fetch(localeId, intensity)
             local results = bucket("moodle")
                 .select(
-                    "locale_id", "icon", "desc_locale_key", "precondition_for_moodle",
+                    "locale_id", "icon", "icon_src_size", "desc_locale_key", "precondition_for_moodle",
                     "precondition_display", "intensity", "intensity_body_field_id",
                     "critical", "critical_expr", "chipped_only")
                 .where("locale_id", localeId)
@@ -1613,25 +1641,6 @@ internal static class WikiContent
             end
 
             return results[1]
-        end
-
-        function p.renderDataRow(frame, row, id, lang)
-            local moodle = Locale.getMoodle(id, lang)
-            if not moodle then
-                moodle = { name = id, description = "" }
-            end
-
-            local isCritical = row.critical or (row.critical_expr and row.critical_expr ~= "")
-            local nameClass = isCritical and "cu-moodle-name cu-moodle-name--critical" or "cu-moodle-name"
-            local nameHtml = '<span class="' .. nameClass .. '">' .. mw.text.nowiki(moodle.name) .. "</span>"
-
-            return {
-                "|-",
-                '! scope="row" | ' .. moodleWidget(frame, row, id, nameHtml),
-                "| <i>" .. mw.text.nowiki(moodle.description) .. "</i>",
-                '| style="text-align: center" | ' .. unchippedCell(row),
-                "| " .. formatCause(row, lang),
-            }
         end
 
         --- Extract arguments for use in the table function.
@@ -1686,24 +1695,31 @@ internal static class WikiContent
 
                 local isCritical = row.critical or (row.critical_expr and row.critical_expr ~= "")
                 local nameClass = isCritical and "cu-moodle-name cu-moodle-name--critical" or "cu-moodle-name"
-                local nameHtml = '<span class="' .. nameClass .. '">' .. mw.text.nowiki(locRow.name or "") .. "</span>"
+                local nameNowiki = mw.text.nowiki(locRow.name or "")
+                local nameHtml = mw.html.create("span")
+                    :addClass(nameClass)
+                    -- used for overflow prevention in css
+                    :css("--max-word-len", maxWordLen(nameNowiki))
+                    :wikitext(nameNowiki)
 
                 local moodleEl = headRow:tag("th")
-                    :wikitext(moodleWidget(frame, row, entry.id, nameHtml))
+                    :wikitext(moodleWidget(frame, row, entry.id, tostring(nameHtml)))
 
                 if idx == 1 then moodleEl:addClass("selected") end
 
+                -- todo: localize tooltip
+                local requiresChipPart = frame:expandTemplate{ title = "tooltip", args = { (ui.is_chipped or "Requires chip"), "Whether the moodle is only visible when the chip is functional." } }
+
                 descRow:tag("td")
-                    :wikitext("<p style='color: var(--text-subtle);'>" .. (ui.is_chipped or "Requires chip") .. (row.chipped_only and templateYes or templateNo) .. "</p>")
-                    :wikitext(mw.text.nowiki(locRow.description))
+                    :wikitext("<p style='color: var(--text-subtle);'>" .. requiresChipPart .. " " .. (row.chipped_only and templateYes or templateNo) .. "</p>")
+                    :wikitext(tmpRenderer.render_tmp_text(locRow.description or ""))
                     :wikitext("<p><span style='color: var(--text-subtle);'>" .. (ui.caused_by or "Caused by") .. "</span><br>" .. formatCause(row, lang) .. "</p>")
             end
 
             return tbl
         end
-
-        return p
         
+        return p
         """;
 
     public const string RouterMoodleModule =

@@ -156,14 +156,20 @@ internal static class LocaleWikiGenerator
 
         foreach (var (path, label) in WikiUiLabels.BodyFields.OrderBy(e => e.Key, StringComparer.Ordinal))
         {
-            sb.Append("  [").Append(LuaFormat.String(path)).Append("] = ")
-                .Append(LuaFormat.String(label)).AppendLine(",");
+            sb.Append("  [")
+              .Append(LuaFormat.String(path))
+              .Append("] = ")
+              .Append(LuaFormat.String(label))
+              .AppendLine(",");
         }
 
         foreach (var (key, label) in WikiUiLabels.Misc.OrderBy(e => e.Key, StringComparer.Ordinal))
         {
-            sb.Append("  [").Append(LuaFormat.String(key)).Append("] = ")
-                .Append(LuaFormat.String(label)).AppendLine(",");
+            sb.Append("  [")
+              .Append(LuaFormat.String(key))
+              .Append("] = ")
+              .Append(LuaFormat.String(label))
+              .AppendLine(",");
         }
 
         sb.AppendLine("}");
