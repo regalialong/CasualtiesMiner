@@ -1,6 +1,6 @@
 ﻿using CasualtiesMiner.Shared.Models;
 
-namespace CasualtiesMiner.Uploader.Data;
+namespace CasualtiesMiner.Uploader.Data.BucketRows;
 
 internal sealed record BlockRow
 {

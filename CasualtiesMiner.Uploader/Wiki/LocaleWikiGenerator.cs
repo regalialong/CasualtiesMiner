@@ -1,4 +1,5 @@
 ﻿using CasualtiesMiner.Uploader.Data;
+using CasualtiesMiner.Uploader.Data.Enums;
 using CasualtiesMiner.Uploader.Data.Locale;
 using System.Text;
 

@@ -1,4 +1,4 @@
-﻿using CasualtiesMiner.Uploader.Data;
+﻿using CasualtiesMiner.Uploader.Data.Mappers;
 
 namespace CasualtiesMiner.Uploader.Wiki;
 

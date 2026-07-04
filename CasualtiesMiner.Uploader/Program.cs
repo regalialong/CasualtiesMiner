@@ -1,5 +1,8 @@
 using CasualtiesMiner.Uploader.Data;
+using CasualtiesMiner.Uploader.Data.BucketRows;
+using CasualtiesMiner.Uploader.Data.Enums;
 using CasualtiesMiner.Uploader.Data.Locale;
+using CasualtiesMiner.Uploader.Data.Mappers;
 using CasualtiesMiner.Uploader.MediaWiki;
 using CasualtiesMiner.Uploader.Wiki;
 

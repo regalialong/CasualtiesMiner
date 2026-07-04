@@ -1,4 +1,7 @@
-﻿namespace CasualtiesMiner.Uploader.Data;
+﻿using CasualtiesMiner.Uploader.Data.BucketRows;
+using CasualtiesMiner.Uploader.Data.Enums;
+
+namespace CasualtiesMiner.Uploader.Data;
 
 internal readonly record struct LocaleModuleEntry(string Key, string LocaleKey, GameObjectType Type)
 {

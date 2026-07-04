@@ -1,6 +1,7 @@
-﻿using CasualtiesMiner.Uploader.Wiki;
+﻿using CasualtiesMiner.Uploader.Data.BucketRows;
+using CasualtiesMiner.Uploader.Wiki;
 
-namespace CasualtiesMiner.Uploader.Data;
+namespace CasualtiesMiner.Uploader.Data.Mappers;
 
 internal static class BodyFieldRowMapper
 {
