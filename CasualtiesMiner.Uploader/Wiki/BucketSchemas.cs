@@ -17,6 +17,8 @@ internal static class BucketSchemas
 
     public const string LiquidBucket = "Liquid";
 
+    public const string BlockBucket = "Block";
+
     public const string RecipeBucket = "Recipe";
     public const string RecipeIngridientBucket = "Recipe_ingridient";
     public const string RecipeResultBucket = "Recipe_result";
@@ -116,6 +118,24 @@ internal static class BucketSchemas
         """;
 
     /// <summary>
+    /// Full block schema.
+    /// </summary>
+    private const string BlockSchema =
+        """
+        {
+            "name":         { "type": "TEXT" },
+            "health":       { "type": "DOUBLE" },
+            "toxicity":     { "type": "DOUBLE" },
+            "hitsound":     { "type": "TEXT" },
+            "stepsound":    { "type": "TEXT" },
+            "no_variation": { "type": "BOOLEAN" },
+            "metallic":     { "type": "BOOLEAN" },
+            "slippery":     { "type": "BOOLEAN" },
+            "sleep":        { "type": "TEXT" }
+        }
+        """;
+
+    /// <summary>
     /// Full recipe schema.
     /// </summary>
     private const string RecipeSchema =
@@ -151,7 +171,7 @@ internal static class BucketSchemas
             "dont_drain_result_liquid": { "type": "BOOLEAN" },
             "id":                       { "type": "TEXT", "index": false },
             "is_liquid":                { "type": "BOOLEAN" },
-            "result_condition":         { "type": "INTEGER" }
+            "result_condition":         { "type": "DOUBLE" }
         }
         """;
 
@@ -215,6 +235,7 @@ internal static class BucketSchemas
             (LiquidContainerBucket, LiquidItemSchema),
             (BatteryBucket, BatteryItemSchema),
             (LiquidBucket, LiquidSchema),
+            (BlockBucket, BlockSchema),
             (RecipeBucket, RecipeSchema),
             (RecipeIngridientBucket, RecipeIngridientSchema),
             (RecipeResultBucket, RecipeResultSchema),

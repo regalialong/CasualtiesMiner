@@ -3,6 +3,9 @@ using System.Text;
 
 namespace CasualtiesMiner.Uploader.Wiki;
 
+/// <summary>
+/// Generates <c>Module:GameField/data</c> for bulk Bucket upload.
+/// </summary>
 internal static partial class WikiGenerator
 {
     public static string BuildGameFieldDataModule(IReadOnlyList<GameFieldRow> rows)

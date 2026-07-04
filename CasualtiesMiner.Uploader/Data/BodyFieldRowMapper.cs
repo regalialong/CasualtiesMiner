@@ -20,9 +20,6 @@ internal static class BodyFieldRowMapper
             GameFieldIds.DislocationHealSpeed, GameFieldIds.DislocationSplintMultiplier),
     ];
 
-    public static IReadOnlyDictionary<string, BodyFieldRow> ToLookup(IEnumerable<BodyFieldRow> rows) =>
-        rows.ToDictionary(row => row.BodyFieldId, StringComparer.Ordinal);
-
     public static bool IsTimerField(string bodyFieldId) =>
         Map().Any(row => row.BodyFieldId == bodyFieldId && row.Kind == "timer");
 

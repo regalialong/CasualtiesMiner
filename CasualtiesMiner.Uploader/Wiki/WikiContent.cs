@@ -11,6 +11,7 @@ internal static class WikiContent
 
     public const string RouterItemModuleTitle = "Module:ItemData";
     public const string RouterLiquidModuleTitle = "Module:LiquidData";
+    public const string RouterBlockModuleTitle = "Module:BlockData";
     public const string RouterRecipeModuleTitle = "Module:RecipeData";
     public const string RouterRecipeItemModuleTitle = "Module:RecipeItemData";
     public const string RouterRecipeResultModuleTitle = "Module:RecipeResultData";
@@ -19,12 +20,14 @@ internal static class WikiContent
     public const string RouterBodyFieldModuleTitle = "Module:BodyFieldData";
 
     public const string ItemBucketModuleTitle = "Module:ItemBucket";
+    public const string BlockBucketModuleTitle = "Module:BlockBucket";
     public const string LiquidBucketModuleTitle = "Module:LiquidBucket";
     public const string RecipeBucketModuleTitle = "Module:RecipeBucket";
     public const string MoodleBucketModuleTitle = "Module:MoodleBucket";
 
     public const string ItemDataModuleTitle = "Module:Item/data";
     public const string LiquidDataModuleTitle = "Module:Liquid/data";
+    public const string BlockDataModuleTitle = "Module:Block/data";
     public const string RecipeDataModuleTitle = "Module:Recipe/data";
     public const string RecipeItemDataModuleTitle = "Module:RecipeItem/data";
     public const string RecipeResultDataModuleTitle = "Module:RecipeResult/data";
@@ -34,6 +37,7 @@ internal static class WikiContent
 
     public const string TriggerItemPageTitle = "Project:Items data";
     public const string TriggerLiquidPageTitle = "Project:Liquid data";
+    public const string TriggerBlockPageTitle = "Project:Block data";
     public const string TriggerRecipePageTitle = "Project:Recipe data";
     public const string TriggerRecipeItemPageTitle = "Project:RecipeItem data";
     public const string TriggerRecipeResultPageTitle = "Project:RecipeResult data";
@@ -427,6 +431,9 @@ internal static class WikiContent
         -- =================================================
         function p.infobox(frame)
             local args = getArgs(frame)
+
+            local addExtraMargin = yesNo(args.extra_margin or false)
+
             local itemId = args.item_id or args[1] or args["1"]
             itemId = itemId and mw.text.trim(tostring(itemId)) or ""
             if itemId == "" then
@@ -455,7 +462,8 @@ internal static class WikiContent
             local resArgs = {
                 item_id = itemId,
                 display_name = localeItem and localeItem.name or itemId,
-                description = tmpRenderer.render_tmp_text(localeItem and localeItem.description or "")
+                description = tmpRenderer.render_tmp_text(localeItem and localeItem.description or ""),
+                extra_margin = addExtraMargin and "yes" or "no"
             }
             local yesTemplate = tostring(frame:expandTemplate{ title = "yes" })
 
@@ -686,11 +694,10 @@ internal static class WikiContent
         end
 
         return p
-        
         """;
 
     public const string RouterItemModule =
-    """
+        """
         -- Module:ItemData
         -- Routes language-neutral item rows into Bucket tables.
         -- Localized names/descriptions are resolved at render time via Module:Locale.
@@ -866,6 +873,34 @@ internal static class WikiContent
 
     #endregion Items
 
+    #region Blocks
+
+    public const string RouterBlockModule =
+    """
+        -- Module:BlockData
+        -- Routes language-neutral recipe rows into Bucket tables.
+        
+        local p = {}
+
+        local function putRow(r)
+            bucket("block").put(r)
+        end
+
+        function p.putAll(frame)
+            local data = mw.loadData("Module:Block/data")
+            local count = 0
+            for _, row in ipairs(data) do
+                putRow(row)
+                count = count + 1
+            end
+            return string.format("Stored %d blocks into Bucket.", count)
+        end
+
+        return p
+        """;
+
+    #endregion Blocks
+
     #region Recipes
 
     public const string RecipeBucketModule =
@@ -874,7 +909,7 @@ internal static class WikiContent
         local getArgs = require("Module:Arguments").getArgs
 
         local p = {}
-            
+
         local function firstRow(result)
             return result and result[1] or nil
         end
@@ -1069,8 +1104,14 @@ internal static class WikiContent
         end
 
         local function formatResultDetail(recipe, ui)
+            local isLiquidResult = recipe["recipe_result.is_liquid"]
+
             local footLines = {
-                { key = "recipe.condition",   value = recipe["recipe_result.result_condition"], fallback = "Condition: %d" },
+                {
+                    key = isLiquidResult and "recipe.volume" or "recipe.condition",
+                    value = recipe["recipe_result.result_condition"] * (isLiquidResult and 1 or 100),
+                    fallback = isLiquidResult and "Volume: %dmL" or "Condition: %d%%"
+                },
                 { key = "recipe.amount",      value = recipe["recipe_result.amount"],           fallback = "Amount: %d" },
                 { key = "recipe.intRequired", value = recipe["int"],                            fallback = "INT needed: %d" },
             }
@@ -1081,7 +1122,7 @@ internal static class WikiContent
                 local num = tonumber(line.value)
                 if num then
                     local template = ui[line.key] or line.fallback
-                    
+
                     if line.key == "recipe.intRequired" then
                         parts[#parts + 1] = "<span style='color: #00ff00;'>" .. string.format(template, num) .. "</span>"
                     else
@@ -1201,7 +1242,7 @@ internal static class WikiContent
             end
 
             local footerContainer = divContainer:tag("div"):addClass("cu-recipe-foot")
-            
+
             footerContainer:tag("div")
                 :addClass("cu-recipe-foot-title")
                 :wikitext(ui["recipe.info"] or "Info")
@@ -1212,7 +1253,7 @@ internal static class WikiContent
                     block:tag("div")
                          :wikitext(resultInfo)
             end
-        
+
             return tostring(divContainer)
         end
 
@@ -1708,7 +1749,7 @@ internal static class WikiContent
                 if idx == 1 then moodleEl:addClass("selected") end
 
                 -- todo: localize tooltip
-                local requiresChipPart = frame:expandTemplate{ title = "tooltip", args = { (ui.is_chipped or "Requires chip"), "Whether the moodle is only visible when the chip is functional." } }
+                local requiresChipPart = frame:expandTemplate{ title = "Tooltip", args = { (ui.is_chipped or "Requires chip"), "Whether the moodle is only visible when the chip is functional." } }
 
                 descRow:tag("td")
                     :wikitext("<p style='color: var(--text-subtle);'>" .. requiresChipPart .. " " .. (row.chipped_only and templateYes or templateNo) .. "</p>")
@@ -1813,6 +1854,14 @@ internal static class WikiContent
         It is generated automatically; do not edit by hand.
 
         {{#invoke:LiquidData|putAll}}
+        """;
+
+    public const string TriggerBlockPage =
+    """
+        This page stores all block data into [[Extension:Bucket|Bucket]] in a single batch.
+        It is generated automatically; do not edit by hand.
+
+        {{#invoke:BlockData|putAll}}
         """;
 
     public const string TriggerRecipePage =
