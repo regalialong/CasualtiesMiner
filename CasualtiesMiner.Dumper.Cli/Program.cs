@@ -4,13 +4,12 @@ using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.CSharp;
 using Mono.Cecil;
 using System.Text.Json;
+using CasualtiesMiner.Dumper.Game;
 
 namespace CasualtiesMiner.Dumper.Cli;
 
 public class Program
 {
-    public const string GAME_PATH = "D:\\Steam\\steamapps\\common\\Casualties Unknown Demo\\CasualtiesUnknown_Data";
-
     public static async Task Main(string[] args)
     {
         var assemblyPath = args.Length > 0 ? args[0] : "Assembly-CSharp.dll";
@@ -51,7 +50,15 @@ public class Program
         BlockInfo[] tiles = [];
         MoodleInfo[] moodles = [];
         GameFields? fields = null;
+        BuildingEntity[] buildings = [];
 
+        using var assets = new AssetsParser(Path.GetDirectoryName(Path.GetDirectoryName(assemblyPath))!);
+
+        assets.LoadResources();
+
+        // TODO: AssetsTools.NET thread safety?
+        buildings = dumper.DumpBuildingEntities(assets);
+        
         await Task.WhenAll(
             Task.Run(() => fields = dumper.DumpGameFields()),
             Task.Run(() => items = dumper.DumpItems(new CSharpDecompiler(assemblyPath, decompilerSettings))),
@@ -66,6 +73,7 @@ public class Program
         Console.WriteLine($"Dumped {liquids.Length} liquids.");
         Console.WriteLine($"Dumped {tiles.Length} tiles.");
         Console.WriteLine($"Dumped {moodles.Length} moodles.");
+        Console.WriteLine($"Dumped {buildings.Length} buildings.");
 
         if (fields is not null)
         {
@@ -87,11 +95,8 @@ public class Program
             Tiles = tiles,
             Moodles = moodles,
             Fields = fields ?? new GameFields(),
+            Buildings = buildings,
         };
-
-        var ttt = new AssetsParser(GAME_PATH);
-
-        ttt.LoadResources();
 
         await File.WriteAllTextAsync("data.json",
             JsonSerializer.Serialize(dumpedData, DumperJsonOptions.Default));

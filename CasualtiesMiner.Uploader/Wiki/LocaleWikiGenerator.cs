@@ -84,6 +84,9 @@ internal static class LocaleWikiGenerator
             GameObjectType.Liquid => (
                 locale.GetOther(entry.LocaleKey, fallback),
                 locale.GetOtherDesc(entry.LocaleKey, fallback)),
+            GameObjectType.Building => (
+                locale.GetBuildings(entry.LocaleKey, fallback),
+                locale.GetBuildingsDesc(entry.LocaleKey, fallback)),
             _ => (fallback, fallback),
         };
     }
