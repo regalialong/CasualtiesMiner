@@ -43,7 +43,7 @@ internal static partial class WikiGenerator
         yield return ("always_drop", LuaList(row.AlwaysDrop));
         yield return ("item_categories_to_add", LuaList(row.ItemCategoriesToAdd));
         yield return ("block_footstep_sound_id", LuaFormat.Num(row.BlockFootstepSoundId));
-        yield return ("cant_hit", LuaFormat.Bool(row.Metallic));
+        yield return ("cant_hit", LuaFormat.Bool(row.CantHit));
         yield return ("animal", LuaFormat.Bool(row.Animal));
         yield return ("ignore_body_optimize", LuaFormat.Bool(row.IgnoreBodyOptimize));
         yield return ("metallic", LuaFormat.Bool(row.Metallic));

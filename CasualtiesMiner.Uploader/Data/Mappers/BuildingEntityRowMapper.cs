@@ -1,5 +1,6 @@
 ﻿using CasualtiesMiner.Shared.Models;
 using CasualtiesMiner.Uploader.Data.BucketRows;
+using System.Globalization;
 
 namespace CasualtiesMiner.Uploader.Data.Mappers;
 
@@ -27,7 +28,7 @@ public class BuildingEntityRowMapper
             IgnoreBodyOptimize = building.ignoreBodyOptimize,
             Metallic = building.metallic
         };
-        
-        static string MapDrop(ItemDrop drop) => $"{drop.id}:{drop.chance}:{drop.conditionMin}:{drop.conditionMax}";
+
+        static string MapDrop(ItemDrop drop) => $"{drop.id}:{drop.chance.ToString(CultureInfo.InvariantCulture)}:{drop.conditionMin.ToString(CultureInfo.InvariantCulture)}:{drop.conditionMax.ToString(CultureInfo.InvariantCulture)}";
     }
 }

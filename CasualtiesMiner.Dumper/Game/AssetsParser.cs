@@ -1,5 +1,5 @@
-﻿using AssetsTools.NET.Extra;
-using AssetsTools.NET;
+﻿using AssetsTools.NET;
+using AssetsTools.NET.Extra;
 
 namespace CasualtiesMiner.Dumper.Game;
 
@@ -30,7 +30,7 @@ public sealed class AssetsParser : IDisposable
 
         ResourcesAssets = Manager.LoadAssetsFile(Path.Combine(GamePath, "resources.assets"), loadDeps: true);
         Manager.LoadClassDatabaseFromPackage(ResourcesAssets.file.Metadata.UnityVersion);
-        
+
         GlobalGameManagers = Manager.LoadAssetsFile(Path.Combine(GamePath, "globalgamemanagers"), loadDeps: true);
         ResourcesManager = GlobalGameManagers.file.GetAssetsOfType(AssetClassID.ResourceManager)[0];
 
@@ -49,7 +49,7 @@ public sealed class AssetsParser : IDisposable
             : assembly.GetManifestResourceStream(resourceName)
                 ?? throw new InvalidOperationException($"Failed to open embedded resource '{resourceName}'.");
     }
-    
+
     public IEnumerable<AssetTypeValueField> ExtractMonoBehaviours(string behaviourName, bool onlyFromNamedPrefabs = true)
     {
         if (ResourcesAssets == null || GlobalGameManagers == null || ResourcesManager == null)
@@ -57,7 +57,7 @@ public sealed class AssetsParser : IDisposable
             Console.WriteLine("Cannot extract monobehaviours, call LoadResources() first.");
             return [];
         }
-        
+
         if (!onlyFromNamedPrefabs)
         {
             return ResourcesAssets.file.GetAssetsOfType(AssetClassID.MonoBehaviour)
@@ -78,10 +78,10 @@ public sealed class AssetsParser : IDisposable
         foreach (var reference in references)
         {
             var assetExt = Manager.GetExtAsset(GlobalGameManagers, reference[1]);
-            
+
             if (assetExt.info == null)
                 continue;
-            
+
             if (assetExt.info.TypeId == (int)AssetClassID.GameObject)
             {
                 // Extract first one we find in the root object's components
@@ -98,7 +98,7 @@ public sealed class AssetsParser : IDisposable
 
                     if (script.baseField == null || script.baseField["m_Name"].AsString != behaviourName)
                         continue;
-                    
+
                     monoBehaviour = componentInstance;
                     break;
                 }
@@ -115,6 +115,13 @@ public sealed class AssetsParser : IDisposable
     {
         Manager?.UnloadAll(true);
         Manager = default;
+
         GC.SuppressFinalize(this);
+    }
+
+    ~AssetsParser()
+    {
+        Manager?.UnloadAll(true);
+        Manager = default;
     }
 }

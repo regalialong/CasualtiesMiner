@@ -118,12 +118,12 @@ internal static class WikiContent
             local liquidIdLc = string.lower(liquidId)
             local res = tbl[liquidId] or tbl[liquidIdLc]
             if res ~= nil then return res end
-        
+
             for id, liquid in pairs(tbl) do
                 if liquid.name == liquidId or string.lower(liquid.name) == liquidIdLc then return liquid end
             end
         end
-        
+
         ---Query building locale information in specified language.
         ---@param buildingId string Building ID or display name. Case insensitive.
         ---@param lang any Target language. For example: EN
@@ -134,7 +134,7 @@ internal static class WikiContent
             local buildingIdLc = string.lower(buildingId)
             local res = tbl[buildingId] or tbl[buildingIdLc]
             if res ~= nil then return res end
-        
+
             for id, building in pairs(tbl) do
                 if building.name == buildingId or string.lower(building.name) == buildingIdLc then return building end
             end
@@ -150,9 +150,25 @@ internal static class WikiContent
             local moodleIdLc = string.lower(moodleId)
             local res = tbl[moodleId] or tbl[moodleIdLc]
             if res ~= nil then return res end
-        
+
             for id, moodle in pairs(tbl) do
                 if moodle.locale_id == moodleId or string.lower(moodle.locale_id) == moodleIdLc then return moodle end
+            end
+        end
+
+        ---Query block locale information in specified language.
+        ---@param blockId string Block ID or display name. Case insensitive.
+        ---@param lang any Target language. For example: EN
+        ---@return table Block language table entry.
+        function p.getBlock(blockId, lang)
+            if not blockId or blockId == "" then return nil end
+            local tbl = loadTable(lang, "blocks")
+            local blockIdLc = string.lower(blockId)
+            local res = tbl[blockId] or tbl[blockIdLc]
+            if res ~= nil then return res end
+
+            for id, block in pairs(tbl) do
+                if block.name == liquidId or string.lower(block.name) == liquidIdLc then return block end
             end
         end
 
@@ -245,6 +261,7 @@ internal static class WikiContent
         local bit32 = require( 'bit32' )
         local yesNo = require("Module:Yesno")
         local tmpRenderer = require("Module:TMPRender")
+        local h = require("Module:BucketUtils")
 
         -- if true, enables debug printing. to be used when editing this module.
         local DEBUG = false
@@ -262,17 +279,8 @@ internal static class WikiContent
             "jump_height_mult_change", "wearable_visual_offset",
         }
 
-        local function merge(into, from)
-            if not from then return end
-            for k, v in pairs(from) do into[k] = v end
-        end
-
-        local function firstRow(result)
-            return result and result[1] or nil
-        end
-
         function p.fetch(itemId)
-            local index = firstRow(bucket("item")
+            local index = h.firstRow(bucket("item")
                 .select("item_id", "category", "subtype", "weight", "value", "tags", "usable", "wearable", "combineable", "obtainable")
                 .where("item_id", itemId)
                 .run())
@@ -280,22 +288,22 @@ internal static class WikiContent
             if not index then return nil end
 
             local row = {}
-            merge(row, index)
+            h.merge(row, index)
 
             local category = row.category or "custom"
-            local detail = firstRow(bucket("item_" .. category)
+            local detail = h.firstRow(bucket("item_" .. category)
                 .select(unpack(DETAIL_COLUMNS))
                 .where("item_id", itemId)
                 .run())
-            merge(row, detail)
+            h.merge(row, detail)
 
             if row.subtype == "liquid" then
-                merge(row, firstRow(bucket("item_liquid")
+                h.merge(row, h.firstRow(bucket("item_liquid")
                     .select("capacity", "auto_fill", "default_contents")
                     .where("item_id", itemId)
                     .run()))
             elseif row.subtype == "battery" then
-                merge(row, firstRow(bucket("item_battery")
+                h.merge(row, h.firstRow(bucket("item_battery")
                     .select("max_charge")
                     .where("item_id", itemId)
                     .run()))
@@ -304,155 +312,14 @@ internal static class WikiContent
             return row
         end
 
-        function capitalizeFirst(str)
-            return (str:gsub("^%l", string.upper))
-        end
-
-        local function paramValue(v)
-            if v == nil then return "" end
-            if type(v) == "boolean" then
-                return yesNo(v) and "true" or "false"
-            end
-            if type(v) == "table" then
-                return table.concat(v, ", ")
-            end
-            return tostring(v)
-        end
-
-        local function escapeTemplate(v)
-            return paramValue(v):gsub("|", "{{!}}")
-        end
-
-        local function assert_not_nil(value, error_message)
-            if value == nil then
-                if error_message == nil then
-                    error("value is nil")
-                else
-                    error(error_message)
-                end
-            end
-
-            return value
-        end
-
-        local function reduce_num_table(tbl, reduceFn, initial_value)
-            local out = initial_value
-
-            for i, v in ipairs(tbl) do
-                out = reduceFn(out, v, i, tbl)
-            end
-
-            return out
-        end
-
-        local function map_numeric_table(tbl, mapFn)
-            local res = {}
-            for _, v in ipairs(tbl) do
-                table.insert(res, mapFn(v, i, tbl))
-            end
-            return res
-        end
-
-        local function round(num)
-            return math.floor(num + 0.5)
-        end
-
-        -- Source - https://stackoverflow.com/a/67917761
-        -- Posted by George Williams, modified by community. See post 'Timeline' for change history
-        -- Retrieved 2026-05-25, License - CC BY-SA 4.0
-        local function round_to_digit(num, dp)
-            --[[
-            round a number to so-many decimal of places, which can be negative,
-            e.g. -1 places rounds to 10's,
-
-            examples
-                173.2562 rounded to 0 dps is 173.0
-                173.2562 rounded to 2 dps is 173.26
-                173.2562 rounded to -1 dps is 170.0
-            ]]--
-            local mult = 10^(dp or 0)
-
-            return math.floor(num * mult + 0.5)/mult
-        end
-
         local function format_decay(minutes)
             local durationStr = lang:formatDuration(minutes * 60)
             return tostring(mw.html.create("span")
                 :wikitext("<b>[[File:Icon_decay.png|16px|class=pixelated]]&nbsp;" .. durationStr .. "</b>"))
         end
 
-        --- Converts list array props `{ "prop1:prop2:propN", "prop1:prop2:propN"  }` to table html elements.
-        --- @param args table Args.
-        --- @param args.caption string Optional table caption. Example: `"Contents"`
-        --- @param args.headers table Optional table headers. Example: `{ "Substance", "Amount (mL)" }`
-        --- @param args.rows table Required table rows. Each row is expected to be separated with a delimiter. Example: `{ "epinephrine:15", "oxyline:25" }`
-        --- @param args.delimiter string Optional delimiter. `":"` by default. Example: `":"`
-        --- @param args.process function Optional processing function. Called on each cell.
-        --- @param args.process.args table `process` function args.
-        --- @param args.process.args.column number Column. Begins with 1.
-        --- @param args.process.args.value string Cell value.
-        --- @param args.process.args.rowsCount number Amount of rows the table has in total.
-        --- @param args.postprocess function Optional post-processing function. Called once after the table is processed.
-        --- @param args.postprocess.args table `postprocess` function args.
-        --- @param args.postprocess.args.rows table Processed rows. Each row is a table with values of either string or any other type resulting from the processing step.
-        --- @return unknown element HTML element.
-        local function listToTableEl(args)
-            assert_not_nil(args.rows, "'rows' was not provided")
-            args.delimiter = args.delimiter or ":"
-
-            local containerEl = mw.html.create("table")
-
-            if args.caption then containerEl:tag("caption"):wikitext(args.caption) end
-
-            if args.headers then
-                local headRow = containerEl:tag("tr")
-                for _, item in ipairs(args.headers) do
-                    headRow:tag("th"):wikitext(item)
-                end
-            end
-
-            local rows = {}
-
-            -- process rows
-            for _, item in ipairs(args.rows) do
-                local row = {}
-                for column, value in ipairs(mw.text.split(item, args.delimiter, true)) do
-                    if args.process then
-                        value = args.process{
-                            column = column,
-                            value = value,
-                            rowsCount = #args.rows
-                        }
-                    end
-
-                    table.insert(row, value)
-                end
-                table.insert(rows, row)
-            end
-
-            -- postprocess rows
-            if args.postprocess then
-                args.postprocess{
-                    rows = rows
-                }
-            end
-
-            -- generate row elements
-            for _, row in ipairs(rows) do
-                local rowEl = containerEl:tag("tr")
-                for _, value in ipairs(row) do
-                    rowEl:tag("td"):wikitext(value)
-                end
-            end
-
-            return containerEl
-        end
-
-        -- =================================================
         function p.infobox(frame)
             local args = getArgs(frame)
-
-            local addExtraMargin = yesNo(args.extra_margin or false)
 
             local itemId = args.item_id or args[1] or args["1"]
             itemId = itemId and mw.text.trim(tostring(itemId)) or ""
@@ -483,7 +350,6 @@ internal static class WikiContent
                 item_id = itemId,
                 display_name = localeItem and localeItem.name or itemId,
                 description = tmpRenderer.render_tmp_text(localeItem and localeItem.description or ""),
-                extra_margin = addExtraMargin and "yes" or "no"
             }
             local yesTemplate = tostring(frame:expandTemplate{ title = "yes" })
 
@@ -501,7 +367,7 @@ internal static class WikiContent
                     if decayMinutes and decayMinutes ~= 0 then
                         resArgs.decay_duration = format_decay(decayMinutes)
                     elseif rotSpeed and rotSpeed ~= 0 then
-                        decayMinutes = round_to_digit((100 / rotSpeed) / 60, 1)
+                        decayMinutes = h.roundToDigit((100 / rotSpeed) / 60, 1)
 
                         if decayMinutes >= 0 then
                             resArgs.decay_duration = format_decay(decayMinutes)
@@ -538,31 +404,8 @@ internal static class WikiContent
                         end
                     end
                     resArgs.weight = frame:preprocess(res)
-                elseif key == "rec" then
-                    local rec = value
-
-                    if rec == 0 then
-                        resArgs.rec_min = "<span style='color: #fc007c;'>None required</span>"
-                    else
-                        local container = mw.html.create("div")
-                            :addClass("rec-grid")
-
-                        for i = 1, 20 do
-                            local cell = container:tag("div")
-
-                            if i <= rec then
-                                cell:addClass("f")
-                            end
-                        end
-
-                        local wrapper = mw.html.create("div")
-                            :wikitext("<span style='color: #fc007c;'>'''INT "..rec.." required'''</span>\n")
-                            :node(container)
-
-                        resArgs.rec_min = tostring(wrapper)
-                    end
                 elseif key == "default_contents" then
-                    function process (args)
+                    local function process (args)
                         -- column: Substance 
                         if args.column == 1 then
                             local liquidId = args.value
@@ -590,15 +433,15 @@ internal static class WikiContent
                         return args.value
                     end
 
-                    function postprocess(args)
+                    local function postprocess(args)
                         if #args.rows < 2 then return end
 
-                        local amounts = map_numeric_table(args.rows, function (row)
+                        local amounts = h.mapArrayTable(args.rows, function (row)
                             -- column: Amount 
                             return row[2]
                         end)
 
-                        local totalAmount = reduce_num_table(amounts, function (acc, value)
+                        local totalAmount = h.reduceArrayTable(amounts, function (acc, value)
                             -- can add bcs converted to number in process step
                             return acc + value
                         end, 0)
@@ -607,7 +450,7 @@ internal static class WikiContent
                             for column, value in ipairs(row) do
                                 -- column: Amount 
                                 if column == 2 then
-                                    local percentage = round_to_digit(value / totalAmount * 100, 1)
+                                    local percentage = h.roundToDigit(value / totalAmount * 100, 1)
                                     -- add how much of the resulting sludge the substance composes
                                     row[column] = value .. " <sup style='color: var(--text-subtle); font-size: .7em;'>("..percentage.."%)</sup>"
                                 end
@@ -615,7 +458,7 @@ internal static class WikiContent
                         end
                     end
 
-                    resArgs[key] = tostring(listToTableEl{
+                    resArgs[key] = tostring(h.listToTableEl{
                         caption = frame:preprocess("{{ui tooltip|Contents|Default contents of this container.}}"),
                         headers = { "Substance", "Amount (mL)" }, 
                         rows = value, 
@@ -628,10 +471,10 @@ internal static class WikiContent
                         hammering = "[[Category:Tools]]",
                     }
 
-                    function process (args)
+                    local function process (args)
                         -- column: Quality 
                         if args.column == 1 then
-                            local label = capitalizeFirst(args.value)
+                            local label = h.capitalizeFirst(args.value)
                             local page = "Category:Quality: "..label
                             local res = "[[:"..page.."|"..label.."]]"
                             local qualityCategory = "[["..page.."]]"
@@ -645,7 +488,7 @@ internal static class WikiContent
                         return args.value
                     end
 
-                function postprocess(args)
+                local function postprocess(args)
                         for _, row in ipairs(args.rows) do
                             if #row < 2 then
                                 -- set 1 amount to columns where amount is not set. 1 is the default.
@@ -654,7 +497,7 @@ internal static class WikiContent
                         end
                     end
 
-                    resArgs[key] = tostring(listToTableEl{
+                    resArgs[key] = tostring(h.listToTableEl{
                         caption = frame:preprocess("{{ui icon|quality|{{ui tooltip|Qualities|Specific characteristics of this item.}}}}"),
                         headers = { "Quality", "Count" },
                         rows = value,
@@ -666,11 +509,11 @@ internal static class WikiContent
                         resArgs.wearable_armor = value
 
                         local damageReduction = 1 - 1 / (1 + value)
-                        damageReductionFmted = frame:expandTemplate{ title = "ui icon", args = { "armor", round_to_digit(damageReduction, 1) * 100 } }
+                        local damageReductionFmted = frame:expandTemplate{ title = "ui icon", args = { "armor", h.roundToDigit(damageReduction, 1) * 100 } }
                         resArgs.damage_reduction = damageReductionFmted
                     end
                 else
-                    resArgs[key] = paramValue(value)
+                    resArgs[key] = h.paramValue(value)
                 end
             end
 
@@ -792,7 +635,7 @@ internal static class WikiContent
             if liquidId == "" then
                 return "[[Category:Errors]]<strong>LiquidBucket:</strong> missing liquid id."
             end
-        
+
             local row = p.fetch(liquidId)
             if not row then
                 return "[[Category:Errors]]<strong>LiquidBucket:</strong> no Bucket row for '" .. liquidId .. "'."
@@ -800,7 +643,7 @@ internal static class WikiContent
 
             local lang = Locale.resolveLang(frame)
             local localeLiquid = Locale.getLiquid(liquidId, lang)
-        
+
             if DEBUG then 
                 mw.log("> lang")
                 mw.logObject(lang)
@@ -835,18 +678,18 @@ internal static class WikiContent
         function p.n_infoboxes(frame)
             local n = tonumber(frame.args.n) or 1
             local from = tonumber(frame.args.from) or 1
-        
+
             local parent = mw.html.create("div")
                 :css("display", "flex")
                 :css("flex-direction", "row")
                 :css("flex-wrap", "wrap")
-        
+
             local queryRes = bucket("liquid")
                 .select("liquid_id")
                 .run()
-        
+
             local total = #queryRes
-        
+
             local count = 0
             for _, obj in ipairs(queryRes) do
                 count = count + 1
@@ -855,10 +698,10 @@ internal static class WikiContent
                     frame.args[1] = liquidId
                     parent:node(p.infobox(frame))
                 end
-        
+
                 if count == (from + n) then break end
             end
-        
+
             return "Displaying " .. from .. " to " .. count .. " of " .. total, parent
         end
 
@@ -866,7 +709,7 @@ internal static class WikiContent
         """;
 
     public const string RouterLiquidModule =
-    """
+        """
         -- Module:LiquidData
         -- Routes language-neutral liquid rows into Bucket tables.
         -- Localized names/descriptions are resolved at render time via Module:Locale.
@@ -895,8 +738,170 @@ internal static class WikiContent
 
     #region Blocks
 
+    public const string BlockBucketModule =
+        """
+        -- Module:BlockBucket
+        -- Usage on a page: {{#invoke:BlockBucket|infobox|marble}}
+
+        local Locale = require("Module:Locale")
+        local getArgs = require("Module:Arguments").getArgs
+        local bit32 = require('bit32')
+        local yesNo = require("Module:Yesno")
+        local tmpRenderer = require("Module:TMPRender")
+        local h = require("Module:BucketUtils")
+
+        -- if true, enables debug printing. to be used when editing this module.
+        local DEBUG = false
+
+        local p = {}
+        local mwLang = mw.language.getContentLanguage()
+
+        local DETAIL_COLUMNS = {
+            "name", "health", "toxicity", "hitsound", "stepsound", "no_variation", "metallic", "slippery", "sleep",
+        }
+
+        function p.fetch(blockId)
+            local index = h.firstRow(bucket("block")
+                .select(unpack(DETAIL_COLUMNS))
+                .where("name", blockId)
+                .run())
+
+            if not index then return nil end
+
+            local row = {}
+            h.merge(row, index)
+
+            return row
+        end
+
+        -- Calculate damage modifier based on strength.
+        local function calcDamageModifier(strength)
+            local sign = strength < 10 and -1 or 1
+            local distFrom10 = math.abs(strength - 10)
+            return 1 + 0.0334 * distFrom10 * sign
+        end
+
+        -- =================================================
+
+        function p.infobox(frame)
+            local args = getArgs(frame)
+
+            local blockId = args.block_id or args[1] or args["1"]
+            blockId = blockId and mw.text.trim(tostring(blockId)) or ""
+            if blockId == "" then
+                return "[[Category:Errors]]<strong>BlockBucket:</strong> missing block id."
+            end
+
+            local row = p.fetch(blockId)
+            if not row then
+                return "[[Category:Errors]]<strong>BlockBucket:</strong> no Bucket row for '" .. blockId .. "'."
+            end
+
+            local lang = Locale.resolveLang(frame)
+            local localeBlock = Locale.getBlock(blockId, lang)
+
+            if DEBUG then
+                mw.log("> lang")
+                mw.logObject(lang)
+                mw.log("> localeBlock")
+                mw.logObject(localeBlock)
+                mw.log("> args")
+                mw.logObject(args)
+                mw.log("> row")
+                mw.logObject(row)
+            end
+
+            local noImage = blockId == "air"
+
+            local resArgs = {
+                noimg = noImage,
+                block_id = blockId,
+                display_name = localeBlock and localeBlock.name or blockId,
+                description = tmpRenderer.render_tmp_text(localeBlock and localeBlock.description or ""),
+            }
+            local yesTemplate = tostring(frame:expandTemplate { title = "yes" })
+
+            for key, value in pairs(row) do
+                if key == "sleep" then
+                    local color = nil
+                    if value == "Bad" then color = "#ff0000" end
+                    if value == "Mediocre" then color = "#ff8000" end
+                    if value == "Okay" then
+                        color =
+                        "color-mix(in srgb, var(--wiki-content-dynamic-color), var(--wiki-content-dynamic-color--inverted) 20%)"
+                    end
+                    if value == "Good" then color = "#00ff00" end
+
+                    if color then
+                        resArgs[key] = "<span style='color: " .. color .. "'>" .. value .. "</span>"
+                    end
+                elseif key == "health" then
+                    local hp = tonumber(value)
+                    if hp and hp > 0 then
+                        local handsBaseDamage = 20;
+                        local tip =
+                        "How many hits will it take to break this block with bare hands based on strength: 0 STR (minimum) / 9 STR (starting) / 20 STR (sane maximum)"
+                        local label = { calcDamageModifier(0), calcDamageModifier(9), calcDamageModifier(20) }
+                        label = h.mapArrayTable(label, function(mod) return math.ceil(hp / (handsBaseDamage * mod)) end)
+                        label = table.concat(label, "/")
+
+                        local hitsNumFmted = "{{ui tooltip|" .. label .. " hits|" .. tip .. "}}"
+                        local hitsFmted = frame:preprocess("{{subtle|<sup>" .. hitsNumFmted .. "</sup>}}")
+
+                        resArgs[key] = h.paramValue(value) .. " " .. hitsFmted
+                    else
+                        resArgs[key] = h.paramValue(value)
+                    end
+                else
+                    resArgs[key] = h.paramValue(value)
+                end
+            end
+
+            if DEBUG then
+                mw.log("> resArgs")
+                mw.logObject(resArgs)
+            end
+
+            return frame:expandTemplate { title = "Block Infobox", args = resArgs }
+        end
+
+        -- Renders N infoboxes. For debugging purposes.
+        function p.n_infoboxes(frame)
+            local n = tonumber(frame.args.n) or 1
+            local from = tonumber(frame.args.from) or 1
+
+            local parent = mw.html.create("div")
+                :css("display", "flex")
+                :css("flex-direction", "row")
+                :css("flex-wrap", "wrap")
+
+            local queryRes = bucket("block")
+                .select("name")
+                .run()
+
+            local total = #queryRes
+
+            local count = 0
+            for _, obj in ipairs(queryRes) do
+                count = count + 1
+                if count >= from then
+                    local id = obj.name
+                    frame.args[1] = id
+                    parent:node(p.infobox(frame))
+                end
+
+                if count == (from + n) then break end
+            end
+
+            return "Displaying " .. from .. " to " .. count .. " of " .. total, parent
+        end
+
+        return p
+        
+        """;
+
     public const string RouterBlockModule =
-    """
+        """
         -- Module:BlockData
         -- Routes language-neutral recipe rows into Bucket tables.
         
@@ -1371,6 +1376,7 @@ internal static class WikiContent
         local Locale = require("Module:Locale")
         local getArgs = require("Module:Arguments").getArgs
         local tmpRenderer = require("Module:TMPRender")
+        local h = require("Module:BucketUtils")
 
         local templateYes = mw.getCurrentFrame():expandTemplate{ title = "Yes" }
         local templateNo = mw.getCurrentFrame():expandTemplate{ title = "No" }
@@ -1381,10 +1387,6 @@ internal static class WikiContent
         local MOODLE_ICON_DISPLAY_LARGE = 64
 
         local p = {}
-
-        local function firstRow(result)
-            return result and result[1] or nil
-        end
 
         local TABLE_COLUMNS = {
             '! scope="col" style="width: 10%" | Moodle',
@@ -1583,7 +1585,7 @@ internal static class WikiContent
 
         local function fetchGameFieldValue(fieldId)
             if not fieldId or fieldId == "" then return nil end
-            local row = firstRow(bucket("gamefield")
+            local row = h.firstRow(bucket("gamefield")
                 .select("value")
                 .where("game_field_id", fieldId)
                 .run())
@@ -1592,7 +1594,7 @@ internal static class WikiContent
 
         local function fetchBodyField(bodyFieldId)
             if not bodyFieldId or bodyFieldId == "" then return nil end
-            return firstRow(bucket("bodyfield")
+            return h.firstRow(bucket("bodyfield")
                 .select("body_field_id", "label", "kind",
                         "heal_speed_field_id", "intensity_scale_field_id", "splint_multiplier_field_id")
                 .where("body_field_id", bodyFieldId)
@@ -1675,7 +1677,7 @@ internal static class WikiContent
             end
             return table.concat(parts, "<br />")
         end
-        
+
         function p.fetch(localeId, intensity)
             local results = bucket("moodle")
                 .select(
@@ -1779,7 +1781,7 @@ internal static class WikiContent
 
             return tbl
         end
-        
+
         return p
         """;
 
@@ -1813,39 +1815,27 @@ internal static class WikiContent
     #endregion Moodles
 
     #region Buildings
-    
+
     // TODO: Actually fill this with stuff
     public const string BuildingBucketModule =
         """
         local Locale = require("Module:Locale")
         local getArgs = require("Module:Arguments").getArgs
         local yesNo = require("Module:Yesno")
+        local bucketUtils = require("Module:BucketUtils")
 
         local p = {}
 
-        local function firstRow(result)
-            return result and result[1] or nil
-        end
-
-        local function paramValue(v)
-            if v == nil then return "" end
-            if type(v) == "boolean" then
-                return yesNo(v) and "true" or "false"
-            end
-            if type(v) == "table" then
-                return table.concat(v, ", ")
-            end
-            return tostring(v)
-        end
-
         function p.fetch(buildingId)
-            return firstRow(bucket("building")
+            return bucketUtils.firstRow(
+                bucket("building")
                 .select("building_id", "items_drop_on_destroy", "health", "require_ground",
                         "skip_description_set", "drop_chance_multiplier", "guaranteed_drop_amount",
                         "always_drop", "item_categories_to_add", "block_footstep_sound_id",
                         "cant_hit", "animal", "ignore_body_optimize", "metallic")
                 .where("building_id", buildingId)
-                .run())
+                .run()
+            )
         end
 
         -- =================================================
@@ -1883,9 +1873,59 @@ internal static class WikiContent
                 description = (localeBuilding and not row.skip_description_set) and localeBuilding.description or "",
             }
 
+            local specificItemDrops = {}
+            local categoryItemDrops = {}
+            local totalCategoryWeight = 0
+
+            local mult = row.drop_chance_multiplier
+
             for key, value in pairs(row) do
-                resArgs[key] = paramValue(value)
+                if key == "items_drop_on_destroy" or key == "always_drop" and value ~= nil then
+                    for _, item_drop_row in pairs(value) do
+                        -- Add to combined drops instead
+                        local parts = mw.text.split(item_drop_row, ":", true)
+                        if key == "always_drop" then
+                            parts[2] = "1" -- These always drop, so drop chance should be displayed as 100%
+                        else
+                            parts[2] = tostring(bucketUtils.roundToDigit(tonumber(parts[2]) * 100 * mult, 2))
+                        end
+
+                        parts[3] = tostring(bucketUtils.roundToDigit(tonumber(parts[3]) * 100, 2))
+                        parts[4] = tostring(bucketUtils.roundToDigit(tonumber(parts[4]) * 100, 2))
+
+                        local condText = (parts[3] == parts[4]) and (parts[3]) or (parts[3] .. "-" .. parts[4])
+
+                        -- blobflesh:100%:70-100%
+                        table.insert(specificItemDrops, "[[" .. Locale.getItem(parts[1], lang).name .. "]]:" .. parts[2] .. "%:" .. condText .. "%")
+                    end
+                elseif key == "item_categories_to_add" then
+                    for _, category in pairs(value) do
+                        categoryItemDrops[category] = (categoryItemDrops[category] or 0) + 1
+                        totalCategoryWeight = totalCategoryWeight + 1
+                    end
+                else
+                    resArgs[key] = bucketUtils.paramValue(value)
+                end
             end
+
+            local categoryItemDropRows = {}
+
+            for key, value in pairs(categoryItemDrops) do
+                local cat = bucketUtils.capitalizeFirst(key)
+                table.insert(categoryItemDropRows, cat .. ":" .. tostring(math.floor(value / totalCategoryWeight * 10000 + 0.5) / 100) .. "%")
+            end
+
+            resArgs["item_drops"] = tostring(bucketUtils.listToTableEl{
+                caption = frame:preprocess("{{ui tooltip|Specific item drops|Specific items that can be dropped by this entity when destroyed. These drop in addition to the category drops.}}"),
+                headers = { "Item", "Drop chance", "Item Condition" },
+                rows = specificItemDrops,
+            })
+
+            resArgs["item_category_drops"] = tostring(bucketUtils.listToTableEl{
+                caption = frame:preprocess("{{ui tooltip|Category item drops|Categories from which items are dropped. These drop in addition to the specific drops.}}"),
+                headers = { "Category", "Drop chance" },
+                rows = categoryItemDropRows,
+            })
 
             local hex = row.color and mw.text.trim(tostring(row.color)) or ""
             hex = hex:gsub("^#", "")
@@ -1928,8 +1968,9 @@ internal static class WikiContent
         end
 
         return p
+        
         """;
-    
+
     public const string RouterBuildingModule =
         """
         -- Module:BuildingData
@@ -1956,9 +1997,9 @@ internal static class WikiContent
 
         return p
         """;
-    
+
     #endregion
-    
+
     #region Game Fields
 
     public const string RouterGameFieldModule =

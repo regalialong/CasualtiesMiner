@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "CasualtiesMiner.Dumper.Cli": {
+      "commandName": "Project",
+      "commandLineArgs": "\"D:\\Steam\\steamapps\\common\\Casualties Unknown Demo\\CasualtiesUnknown_Data\\Managed\\Assembly-CSharp.dll\""
+    }
+  }
+}
