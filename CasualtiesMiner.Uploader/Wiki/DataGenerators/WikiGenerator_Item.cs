@@ -33,6 +33,7 @@ internal static partial class WikiGenerator
     private static IEnumerable<(string Key, string Value)> EnumerateItemFields(ItemRow row)
     {
         yield return ("item_id", LuaFormat.String(row.ItemId));
+        yield return ("sprite_name", LuaFormat.String(row.SpriteName));
         yield return ("category", LuaFormat.String(row.Category));
         yield return ("subtype", LuaFormat.String(row.Subtype));
         yield return ("obtainable", LuaFormat.Bool(row.Obtainable));

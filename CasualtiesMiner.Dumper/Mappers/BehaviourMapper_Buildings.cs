@@ -1,9 +1,9 @@
 ﻿using AssetsTools.NET;
 using CasualtiesMiner.Shared.Models;
 
-namespace CasualtiesMiner.Dumper;
+namespace CasualtiesMiner.Dumper.Mappers;
 
-public static class BehaviourMapper
+public static partial class BehaviourMapper
 {
     public static ItemDrop MapItemDrop(AssetTypeValueField baseField)
     {
@@ -15,7 +15,7 @@ public static class BehaviourMapper
             conditionMin = baseField["conditionMin"].AsFloat
         };
     }
-    
+
     public static BuildingEntity MapBuildingEntity(AssetTypeValueField baseField)
     {
         return new BuildingEntity

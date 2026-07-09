@@ -1,4 +1,5 @@
-﻿using CasualtiesMiner.Shared.Models;
+﻿using CasualtiesMiner.Dumper.Game;
+using CasualtiesMiner.Shared.Models;
 using ICSharpCode.Decompiler.CSharp;
 using Mono.Cecil.Cil;
 
@@ -6,7 +7,7 @@ namespace CasualtiesMiner.Dumper;
 
 public sealed partial class Dumper
 {
-    public ItemInfo[] DumpItems(CSharpDecompiler decompiler)
+    public ItemInfo[] DumpItems(CSharpDecompiler decompiler, AssetsParser assetsParser)
     {
         var itemList = new List<ItemInfo>();
 
@@ -57,6 +58,7 @@ public sealed partial class Dumper
             }
 
             var itemName = (string)instructions[i + 1].Operand;
+            var spriteName = DumpObjectSprite(assetsParser, itemName);
             var itemDict = new Dictionary<string, object?>();
 
             string[] validTypes = ["ItemInfo"];
@@ -91,6 +93,7 @@ public sealed partial class Dumper
                 item = new ItemInfo();
 
             item.fullName = itemName;
+            item.spriteName = spriteName;
             item.category = GetValue<string>(itemDict, "category");
             item.slotRotation = GetValue<float>(itemDict, "slotRotation");
             item.usable = GetValue<bool>(itemDict, "usable");

@@ -7,6 +7,7 @@
 internal sealed record ItemRow
 {
     public required string ItemId { get; init; }
+    public required string SpriteName { get; init; }
     public required string Category { get; init; }
 
     /// <summary>

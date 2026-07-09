@@ -32,6 +32,7 @@ internal static class ItemRowMapper
         return new ItemRow
         {
             ItemId = id,
+            SpriteName = item.spriteName,
             Category = category,
             Subtype = subtype,
             Obtainable = category != "unobtainable",

@@ -89,7 +89,7 @@ public sealed class AssetsParser : IDisposable
 
                 foreach (var componentKeyPptr in Manager.GetBaseField(assetExt.file, assetExt.info)["m_Component.Array"])
                 {
-                    var componentInstance = Manager.GetExtAsset(assetExt.file, componentKeyPptr[0]);
+                    var componentInstance = Manager.GetExtAsset(assetExt.file, componentKeyPptr["component"]);
 
                     if (componentInstance.info == null || componentInstance.info.TypeId != (int)AssetClassID.MonoBehaviour)
                         continue;
@@ -109,6 +109,53 @@ public sealed class AssetsParser : IDisposable
         }
 
         return monoBehavioursFound;
+    }
+
+    public string ExtractSprite(string objectName)
+    {
+        if (ResourcesAssets == null || GlobalGameManagers == null || ResourcesManager == null)
+        {
+            Console.WriteLine("Cannot extract monobehaviours, call LoadResources() first.");
+            return string.Empty;
+        }
+
+        var resourceManagerRoot = Manager.GetBaseField(GlobalGameManagers, ResourcesManager);
+
+        var references = resourceManagerRoot["m_Container.Array"].ToList();
+        var spriteFound = string.Empty;
+
+        foreach (var reference in references)
+        {
+            var assetExt = Manager.GetExtAsset(GlobalGameManagers, reference[1]);
+
+            if (assetExt.info == null || assetExt.info.TypeId != (int)AssetClassID.GameObject)
+                continue;
+
+            var goBase = Manager.GetBaseField(assetExt.file, assetExt.info);
+            if (goBase["m_Name"].AsString != objectName)
+                continue;
+
+            foreach (var data in goBase["m_Component.Array"])
+            {
+                var componentPointer = data["component"];
+                var componentExtInfo = Manager.GetExtAsset(assetExt.file, componentPointer);
+
+                if (componentExtInfo.info == null)
+                    continue;
+
+                if (componentExtInfo.info.TypeId == (int)AssetClassID.SpriteRenderer)
+                {
+                    var spriteExtInfo = Manager.GetExtAsset(assetExt.file, componentExtInfo.baseField["m_Sprite"]);
+
+                    if (spriteExtInfo.info == null)
+                        continue;
+
+                    spriteFound = spriteExtInfo.baseField["m_Name"].AsString;
+                }
+            }
+        }
+
+        return spriteFound;
     }
 
     public void Dispose()

@@ -32,7 +32,7 @@ public sealed class ModelGenerator : IIncrementalGenerator
         "SleepQuality",
         "Language",
         "BuildingEntity",
-        "ItemDrop"
+        "ItemDrop",
     };
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -165,7 +165,7 @@ public sealed class ModelGenerator : IIncrementalGenerator
         bool ShouldKeepType(ITypeSymbol type)
         {
             var name = type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-            
+
             if (name.StartsWith("global::UnityEngine"))
             {
                 return name switch
@@ -177,7 +177,7 @@ public sealed class ModelGenerator : IIncrementalGenerator
 
             return true;
         }
-        
+
         return type.GetMembers()
             .OfType<IFieldSymbol>()
             .Where(f => !f.IsStatic && !f.IsImplicitlyDeclared)

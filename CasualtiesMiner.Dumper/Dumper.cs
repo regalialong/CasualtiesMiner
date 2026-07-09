@@ -1,4 +1,5 @@
-﻿using Mono.Cecil;
+﻿using CasualtiesMiner.Dumper.Game;
+using Mono.Cecil;
 
 namespace CasualtiesMiner.Dumper;
 
@@ -10,4 +11,6 @@ public sealed partial class Dumper
     {
         _module = module;
     }
+
+    public static string DumpObjectSprite(AssetsParser assetsParser, string itemName) => assetsParser.ExtractSprite(itemName);
 }

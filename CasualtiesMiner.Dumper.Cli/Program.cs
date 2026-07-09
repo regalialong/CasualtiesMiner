@@ -57,11 +57,11 @@ public class Program
         assets.LoadResources();
 
         // TODO: AssetsTools.NET thread safety?
-        buildings = dumper.DumpBuildingEntities(assets);
-        
+        buildings = Dumper.DumpBuildingEntities(assets);
+
         await Task.WhenAll(
             Task.Run(() => fields = dumper.DumpGameFields()),
-            Task.Run(() => items = dumper.DumpItems(new CSharpDecompiler(assemblyPath, decompilerSettings))),
+            Task.Run(() => items = dumper.DumpItems(new CSharpDecompiler(assemblyPath, decompilerSettings), assets)),
             Task.Run(() => recipes = dumper.DumpRecipes(new CSharpDecompiler(assemblyPath, decompilerSettings))),
             Task.Run(() => liquids = dumper.DumpLiquids(new CSharpDecompiler(assemblyPath, decompilerSettings))),
             Task.Run(() => tiles = dumper.DumpTiles(new CSharpDecompiler(assemblyPath, decompilerSettings))),

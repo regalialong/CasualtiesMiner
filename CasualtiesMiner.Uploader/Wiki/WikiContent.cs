@@ -92,6 +92,20 @@ internal static class WikiContent
             return normalizeLang(mw.language.getContentLanguage():getCode())
         end
 
+        -- Overrides text from the result if the given fields are present in the override module
+        function p.addTextOverrides(result, id, lang, suffix)
+            local overrides = loadTable(lang, "overrides")
+            local overrideText = (overrides[suffix] or {})[id] or {}
+            local finalResult = {}
+            for key, value in pairs(result) do
+                finalResult[key] = value
+            end
+            for key, value in pairs(overrideText) do
+                finalResult[key] = value
+            end
+            return finalResult
+        end
+
         ---Query item locale information in specified language.
         ---@param itemId string Item ID or display name. Case insensitive.
         ---@param lang any Target language. For example: EN
@@ -101,7 +115,7 @@ internal static class WikiContent
             local tbl = loadTable(lang, "items")
             local itemIdLc = string.lower(itemId)
             local res = tbl[itemId] or tbl[itemIdLc]
-            if res ~= nil then return res end
+            if res ~= nil then return p.addTextOverrides(res, itemId, lang, "items") end
 
             for id, item in pairs(tbl) do
                 if item.name == itemId or string.lower(item.name) == itemIdLc then return item end
@@ -117,7 +131,7 @@ internal static class WikiContent
             local tbl = loadTable(lang, "liquids")
             local liquidIdLc = string.lower(liquidId)
             local res = tbl[liquidId] or tbl[liquidIdLc]
-            if res ~= nil then return res end
+            if res ~= nil then return p.addTextOverrides(res, liquidId, lang, "liquids") end
 
             for id, liquid in pairs(tbl) do
                 if liquid.name == liquidId or string.lower(liquid.name) == liquidIdLc then return liquid end
@@ -133,7 +147,7 @@ internal static class WikiContent
             local tbl = loadTable(lang, "buildings")
             local buildingIdLc = string.lower(buildingId)
             local res = tbl[buildingId] or tbl[buildingIdLc]
-            if res ~= nil then return res end
+            if res ~= nil then return p.addTextOverrides(res, buildingId, lang, "buildings") end
 
             for id, building in pairs(tbl) do
                 if building.name == buildingId or string.lower(building.name) == buildingIdLc then return building end
@@ -149,7 +163,7 @@ internal static class WikiContent
             local tbl = loadTable(lang, "moodles")
             local moodleIdLc = string.lower(moodleId)
             local res = tbl[moodleId] or tbl[moodleIdLc]
-            if res ~= nil then return res end
+            if res ~= nil then return p.addTextOverrides(res, moodleId, lang, "moodles") end
 
             for id, moodle in pairs(tbl) do
                 if moodle.locale_id == moodleId or string.lower(moodle.locale_id) == moodleIdLc then return moodle end
@@ -165,7 +179,7 @@ internal static class WikiContent
             local tbl = loadTable(lang, "blocks")
             local blockIdLc = string.lower(blockId)
             local res = tbl[blockId] or tbl[blockIdLc]
-            if res ~= nil then return res end
+            if res ~= nil then return p.addTextOverrides(res, blockId, lang, "blocks") end
 
             for id, block in pairs(tbl) do
                 if block.name == liquidId or string.lower(block.name) == liquidIdLc then return block end
@@ -261,7 +275,7 @@ internal static class WikiContent
         local bit32 = require( 'bit32' )
         local yesNo = require("Module:Yesno")
         local tmpRenderer = require("Module:TMPRender")
-        local h = require("Module:BucketUtils")
+        local bucketUtils = require("Module:BucketUtils")
 
         -- if true, enables debug printing. to be used when editing this module.
         local DEBUG = false
@@ -280,30 +294,30 @@ internal static class WikiContent
         }
 
         function p.fetch(itemId)
-            local index = h.firstRow(bucket("item")
-                .select("item_id", "category", "subtype", "weight", "value", "tags", "usable", "wearable", "combineable", "obtainable")
+            local index = bucketUtils.firstRow(bucket("item")
+                .select("item_id", "sprite_name", "category", "subtype", "weight", "value", "tags", "usable", "wearable", "combineable", "obtainable")
                 .where("item_id", itemId)
                 .run())
 
             if not index then return nil end
 
             local row = {}
-            h.merge(row, index)
+            bucketUtils.merge(row, index)
 
             local category = row.category or "custom"
-            local detail = h.firstRow(bucket("item_" .. category)
+            local detail = bucketUtils.firstRow(bucket("item_" .. category)
                 .select(unpack(DETAIL_COLUMNS))
                 .where("item_id", itemId)
                 .run())
-            h.merge(row, detail)
+            bucketUtils.merge(row, detail)
 
             if row.subtype == "liquid" then
-                h.merge(row, h.firstRow(bucket("item_liquid")
+                bucketUtils.merge(row, bucketUtils.firstRow(bucket("item_liquid")
                     .select("capacity", "auto_fill", "default_contents")
                     .where("item_id", itemId)
                     .run()))
             elseif row.subtype == "battery" then
-                h.merge(row, h.firstRow(bucket("item_battery")
+                bucketUtils.merge(row, bucketUtils.firstRow(bucket("item_battery")
                     .select("max_charge")
                     .where("item_id", itemId)
                     .run()))
@@ -316,6 +330,30 @@ internal static class WikiContent
             local durationStr = lang:formatDuration(minutes * 60)
             return tostring(mw.html.create("span")
                 :wikitext("<b>[[File:Icon_decay.png|16px|class=pixelated]]&nbsp;" .. durationStr .. "</b>"))
+        end
+
+        ---Format sounds params and writes results to the resulting table. 
+        ---Goes through all of them as long as they are consecutive.
+        local function format_sounds(frame, rowTbl, resTbl)
+            local idx = 1
+            while true do
+                local sound = rowTbl["sound"..idx]
+                mw.log(sound)
+                if not sound then break end
+
+                local caption = rowTbl["sound"..idx.."_caption"]
+
+                local wrapper = mw.html.create("div")
+
+                wrapper:wikitext(frame:expandTemplate{ title = "Audio/tiny", args = { file = sound } })
+
+                if caption then 
+                    wrapper:wikitext("<br>" .. caption)
+                end
+
+                resTbl["sound"..idx] = tostring(wrapper)
+                idx = idx + 1
+            end
         end
 
         function p.infobox(frame)
@@ -350,6 +388,7 @@ internal static class WikiContent
                 item_id = itemId,
                 display_name = localeItem and localeItem.name or itemId,
                 description = tmpRenderer.render_tmp_text(localeItem and localeItem.description or ""),
+                sprite_name = (row.sprite_name and row.sprite_name ~= "") and row.sprite_name or itemId,
             }
             local yesTemplate = tostring(frame:expandTemplate{ title = "yes" })
 
@@ -367,7 +406,7 @@ internal static class WikiContent
                     if decayMinutes and decayMinutes ~= 0 then
                         resArgs.decay_duration = format_decay(decayMinutes)
                     elseif rotSpeed and rotSpeed ~= 0 then
-                        decayMinutes = h.roundToDigit((100 / rotSpeed) / 60, 1)
+                        decayMinutes = bucketUtils.roundToDigit((100 / rotSpeed) / 60, 1)
 
                         if decayMinutes >= 0 then
                             resArgs.decay_duration = format_decay(decayMinutes)
@@ -436,12 +475,12 @@ internal static class WikiContent
                     local function postprocess(args)
                         if #args.rows < 2 then return end
 
-                        local amounts = h.mapArrayTable(args.rows, function (row)
+                        local amounts = bucketUtils.mapArrayTable(args.rows, function (row)
                             -- column: Amount 
                             return row[2]
                         end)
 
-                        local totalAmount = h.reduceArrayTable(amounts, function (acc, value)
+                        local totalAmount = bucketUtils.reduceArrayTable(amounts, function (acc, value)
                             -- can add bcs converted to number in process step
                             return acc + value
                         end, 0)
@@ -450,7 +489,7 @@ internal static class WikiContent
                             for column, value in ipairs(row) do
                                 -- column: Amount 
                                 if column == 2 then
-                                    local percentage = h.roundToDigit(value / totalAmount * 100, 1)
+                                    local percentage = bucketUtils.roundToDigit(value / totalAmount * 100, 1)
                                     -- add how much of the resulting sludge the substance composes
                                     row[column] = value .. " <sup style='color: var(--text-subtle); font-size: .7em;'>("..percentage.."%)</sup>"
                                 end
@@ -458,7 +497,7 @@ internal static class WikiContent
                         end
                     end
 
-                    resArgs[key] = tostring(h.listToTableEl{
+                    resArgs[key] = tostring(bucketUtils.listToTableEl{
                         caption = frame:preprocess("{{ui tooltip|Contents|Default contents of this container.}}"),
                         headers = { "Substance", "Amount (mL)" }, 
                         rows = value, 
@@ -474,7 +513,7 @@ internal static class WikiContent
                     local function process (args)
                         -- column: Quality 
                         if args.column == 1 then
-                            local label = h.capitalizeFirst(args.value)
+                            local label = bucketUtils.capitalizeFirst(args.value)
                             local page = "Category:Quality: "..label
                             local res = "[[:"..page.."|"..label.."]]"
                             local qualityCategory = "[["..page.."]]"
@@ -497,7 +536,7 @@ internal static class WikiContent
                         end
                     end
 
-                    resArgs[key] = tostring(h.listToTableEl{
+                    resArgs[key] = tostring(bucketUtils.listToTableEl{
                         caption = frame:preprocess("{{ui icon|quality|{{ui tooltip|Qualities|Specific characteristics of this item.}}}}"),
                         headers = { "Quality", "Count" },
                         rows = value,
@@ -509,11 +548,17 @@ internal static class WikiContent
                         resArgs.wearable_armor = value
 
                         local damageReduction = 1 - 1 / (1 + value)
-                        local damageReductionFmted = frame:expandTemplate{ title = "ui icon", args = { "armor", h.roundToDigit(damageReduction, 1) * 100 } }
+                        local damageReductionFmted = frame:expandTemplate{ title = "ui icon", args = { "armor", bucketUtils.roundToDigit(damageReduction, 1) * 100 } }
                         resArgs.damage_reduction = damageReductionFmted
                     end
+                elseif key == "sprite_name" then
+                    if value and tostring(value) ~= "" then
+                        resArgs.sprite_name = bucketUtils.paramValue(value)
+                    end
+                elseif bucketUtils.startsWith(key, "sound") then
+                    format_sounds(frame, row, resArgs)
                 else
-                    resArgs[key] = h.paramValue(value)
+                    resArgs[key] = bucketUtils.paramValue(value)
                 end
             end
 
@@ -554,6 +599,26 @@ internal static class WikiContent
             end
 
             return "Displaying " .. from .. " to " .. count .. " of " .. total, parent
+        end
+
+        function p.progress_box(frame)
+            local lang = Locale.resolveLang(frame)
+
+            local items = bucket("item")
+                .select("item_id")
+                .run()
+
+            local root = mw.html.create("div")
+                :css("display", "none")
+                :addClass("pbox-link-holder")
+            for i, item in ipairs(items) do
+                local itemId = item.item_id
+                local localeItem = Locale.getItem(itemId, lang)
+                local displayName = localeItem and localeItem.name or itemId
+
+                root:wikitext("[["..(displayName).."|_]]")
+            end
+            return root
         end
 
         return p
@@ -600,26 +665,15 @@ internal static class WikiContent
         local Locale = require("Module:Locale")
         local getArgs = require("Module:Arguments").getArgs
         local yesNo = require("Module:Yesno")
+        local bucketUtils = require("Module:BucketUtils")
+
+        -- if true, enables debug printing. to be used when editing this module.
+        local DEBUG = false
 
         local p = {}
 
-        local function firstRow(result)
-            return result and result[1] or nil
-        end
-
-        local function paramValue(v)
-            if v == nil then return "" end
-            if type(v) == "boolean" then
-                return yesNo(v) and "true" or "false"
-            end
-            if type(v) == "table" then
-                return table.concat(v, ", ")
-            end
-            return tostring(v)
-        end
-
         function p.fetch(liquidId)
-            return firstRow(bucket("liquid")
+            return bucketUtils.firstRow(bucket("liquid")
                 .select("liquid_id", "color", "value_per_liter", "health_usable",
                         "injectable", "locale_from_item", "injection_sickness", "qualities")
                 .where("liquid_id", liquidId)
@@ -662,7 +716,7 @@ internal static class WikiContent
             }
 
             for key, value in pairs(row) do
-                resArgs[key] = paramValue(value)
+                resArgs[key] = bucketUtils.paramValue(value)
             end
 
             local hex = row.color and mw.text.trim(tostring(row.color)) or ""
@@ -748,7 +802,7 @@ internal static class WikiContent
         local bit32 = require('bit32')
         local yesNo = require("Module:Yesno")
         local tmpRenderer = require("Module:TMPRender")
-        local h = require("Module:BucketUtils")
+        local bucketUtils = require("Module:BucketUtils")
 
         -- if true, enables debug printing. to be used when editing this module.
         local DEBUG = false
@@ -761,7 +815,7 @@ internal static class WikiContent
         }
 
         function p.fetch(blockId)
-            local index = h.firstRow(bucket("block")
+            local index = bucketUtils.firstRow(bucket("block")
                 .select(unpack(DETAIL_COLUMNS))
                 .where("name", blockId)
                 .run())
@@ -769,7 +823,7 @@ internal static class WikiContent
             if not index then return nil end
 
             local row = {}
-            h.merge(row, index)
+            bucketUtils.merge(row, index)
 
             return row
         end
@@ -842,18 +896,18 @@ internal static class WikiContent
                         local tip =
                         "How many hits will it take to break this block with bare hands based on strength: 0 STR (minimum) / 9 STR (starting) / 20 STR (sane maximum)"
                         local label = { calcDamageModifier(0), calcDamageModifier(9), calcDamageModifier(20) }
-                        label = h.mapArrayTable(label, function(mod) return math.ceil(hp / (handsBaseDamage * mod)) end)
+                        label = bucketUtils.mapArrayTable(label, function(mod) return math.ceil(hp / (handsBaseDamage * mod)) end)
                         label = table.concat(label, "/")
 
                         local hitsNumFmted = "{{ui tooltip|" .. label .. " hits|" .. tip .. "}}"
                         local hitsFmted = frame:preprocess("{{subtle|<sup>" .. hitsNumFmted .. "</sup>}}")
 
-                        resArgs[key] = h.paramValue(value) .. " " .. hitsFmted
+                        resArgs[key] = bucketUtils.paramValue(value) .. " " .. hitsFmted
                     else
-                        resArgs[key] = h.paramValue(value)
+                        resArgs[key] = bucketUtils.paramValue(value)
                     end
                 else
-                    resArgs[key] = h.paramValue(value)
+                    resArgs[key] = bucketUtils.paramValue(value)
                 end
             end
 
@@ -897,7 +951,6 @@ internal static class WikiContent
         end
 
         return p
-        
         """;
 
     public const string RouterBlockModule =
@@ -1105,11 +1158,13 @@ internal static class WikiContent
             local minCond = tonumber(ingredient["recipe_ingridient.minimum_condition"])
 
             if isLiquid then
-                if minCond and minCond > 0 then
-                    local template = ui["recipe.liquid_condition_at_least"] or "At least %s mL"
+                if specific and specificId ~= "" then
+                    if minCond and minCond > 0 then
+                        local template = ui["recipe.liquid_condition_at_least"] or "At least %s mL"
 
-                    strings[#strings + 1] = "<span style='color: #aaaaaa;'>- "
-                        .. string.format(template, formatNumber(minCond)) .. "</span>"
+                        strings[#strings + 1] = "<span style='color: #aaaaaa;'>- "
+                            .. string.format(template, formatNumber(minCond)) .. "</span>"
+                    end
                 end
             else
                 if minCond and minCond > 0 then
@@ -1376,7 +1431,8 @@ internal static class WikiContent
         local Locale = require("Module:Locale")
         local getArgs = require("Module:Arguments").getArgs
         local tmpRenderer = require("Module:TMPRender")
-        local h = require("Module:BucketUtils")
+        local bucketUtils = require("Module:BucketUtils")
+        local assert = require("Module:Assert")
 
         local templateYes = mw.getCurrentFrame():expandTemplate{ title = "Yes" }
         local templateNo = mw.getCurrentFrame():expandTemplate{ title = "No" }
@@ -1532,37 +1588,60 @@ internal static class WikiContent
             return math.floor(MOODLE_ICON_DISPLAY_BASE + t * (MOODLE_ICON_DISPLAY_LARGE - MOODLE_ICON_DISPLAY_BASE) + 0.5)
         end
 
-        local function fileThumb(frame, filename, srcSize)
-            local display = moodleDisplaySize(srcSize, srcSize)
+        local function fileThumb(frame, filename, srcSize, overrideSize)
+            local display = overrideSize and srcSize or moodleDisplaySize(srcSize, srcSize)
             return frame:preprocess(string.format("[[File:%s|%dx%dpx]]", filename, display, display))
         end
 
-        local function iconFile(frame, row, id)
+        ---Generates moodle icon compound element.
+        ---@param frame any
+        ---@param row any
+        ---@param id any
+        ---@param opts table Extra options.
+        ---@param opts.sizeOverride number Overrides icon size. Must be a number in pixels without a suffix, eg `10`.
+        ---@return unknown unknown Element node.
+        local function iconFile(frame, row, id, opts)
+            opts = opts and opts or {}
+
             local bg = moodBackgroundFile(row.intensity)
             local fg = resolveIconFilename(row, id)
 
-            local fgSize = rowIconSrcSize(row)
-            local bgSize = MOODLE_ICON_SRC_BASE
-            local stackSize = moodleDisplaySize(math.max(fgSize, bgSize), math.max(fgSize, bgSize))
+            local fgSize = opts.sizeOverride or rowIconSrcSize(row)
+            local bgSize = opts.sizeOverride or MOODLE_ICON_SRC_BASE
+            local stackSize = opts.sizeOverride or moodleDisplaySize(math.max(fgSize, bgSize), math.max(fgSize, bgSize))
             local stackClass = "cu-moodle-icon-stack"
 
             if stackSize > MOODLE_ICON_DISPLAY_BASE then
                 stackClass = stackClass .. " cu-moodle-icon-stack--lg"
             end
 
-            local parts = {
-                '<div class="' .. stackClass .. '" style="width:' .. stackSize .. "px;height:" .. stackSize .. 'px">',
-                '<div class="cu-moodle-bg">' .. fileThumb(frame, bg, bgSize) .. "</div>",
-                '<div class="cu-moodle-fg">' .. fileThumb(frame, fg, fgSize) .. "</div>",
-            }
+            local root = mw.html.create("div")
 
-            if row.critical then
-                parts[#parts + 1] = '<div class="cu-moodle-flash-overlay" aria-hidden="true"></div>'
+            local cunt = root:tag("div")
+                :addClass(stackClass)
+                :css{
+                    width = opts.sizeOverride and opts.sizeOverride.."px" or stackSize,
+                    height = opts.sizeOverride and opts.sizeOverride.."px" or stackSize
+                }
+
+            local moodleBgEl = cunt:tag("div")
+                :addClass("cu-moodle-bg")
+                :wikitext(fileThumb(frame, bg, bgSize, opts.sizeOverride))
+
+            local moodleFgEl = cunt:tag("div")
+                :addClass("cu-moodle-fg")
+                :wikitext(fileThumb(frame, fg, fgSize, opts.sizeOverride))
+
+            if opts.sizeOverride then
+                moodleBgEl:css{ width = opts.sizeOverride .. "px", height = opts.sizeOverride .. "px" }
+                moodleFgEl:css{ width = opts.sizeOverride .. "px", height = opts.sizeOverride .. "px" }
             end
 
-            parts[#parts + 1] = "</div>"
+            if row.critical then
+                cunt:wikitext('<div class="cu-moodle-flash-overlay" aria-hidden="true"></div>')
+            end
 
-            return table.concat(parts, "")
+            return root
         end
 
         local function moodleWidget(frame, row, id, nameHtml)
@@ -1571,7 +1650,7 @@ internal static class WikiContent
                 widgetClass = widgetClass .. " cu-moodle-widget--critical"
             end
             return '<div class="' .. widgetClass .. '">'
-                .. iconFile(frame, row, id)
+                .. tostring(iconFile(frame, row, id))
                 .. nameHtml
                 .. "</div>"
         end
@@ -1585,7 +1664,7 @@ internal static class WikiContent
 
         local function fetchGameFieldValue(fieldId)
             if not fieldId or fieldId == "" then return nil end
-            local row = h.firstRow(bucket("gamefield")
+            local row = bucketUtils.firstRow(bucket("gamefield")
                 .select("value")
                 .where("game_field_id", fieldId)
                 .run())
@@ -1594,7 +1673,7 @@ internal static class WikiContent
 
         local function fetchBodyField(bodyFieldId)
             if not bodyFieldId or bodyFieldId == "" then return nil end
-            return h.firstRow(bucket("bodyfield")
+            return bucketUtils.firstRow(bucket("bodyfield")
                 .select("body_field_id", "label", "kind",
                         "heal_speed_field_id", "intensity_scale_field_id", "splint_multiplier_field_id")
                 .where("body_field_id", bodyFieldId)
@@ -1782,6 +1861,40 @@ internal static class WikiContent
             return tbl
         end
 
+        ---Creates a moodle icon.
+        function p.simpleMoodleIcon(frame)
+            local args, entries = extractArgsForTableFn(frame)
+            if #entries == 0 then error("no moodle ID provided") end
+            if #entries > 1 then error("expected one moodle ID, but received '"..#entries.."' instead") end
+            local entry = entries[1]
+
+            local size = args.size
+            if size then size = assert.isNumberCoerce(size, "failed to parse size into a number, received '"..size.."'") end
+
+            -- ==========================
+
+            local lang = Locale.resolveLang(frame)
+            local ui = Locale.wikiUi(lang)
+
+            local intensity = resolveIntensity(entry, args)
+            local row = p.fetch(entry.id, intensity)
+            if not row then
+                error("MoodleBucket: no Bucket row for " .. mw.text.nowiki(entry.id))
+            end
+
+            local opts = {
+                sizeOverride = size
+            }
+
+            local moodleIcon = iconFile(frame, row, entry.id, opts)
+            moodleIcon:css{
+                display = "inline-block",
+                ["vertical-align"] = "middle"
+            }
+
+            return tostring(moodleIcon) .. "[[Category:Pages with MoodleTable]]"
+        end
+
         return p
         """;
 
@@ -1823,6 +1936,9 @@ internal static class WikiContent
         local getArgs = require("Module:Arguments").getArgs
         local yesNo = require("Module:Yesno")
         local bucketUtils = require("Module:BucketUtils")
+
+        -- if true, enables debug printing. to be used when editing this module.
+        local DEBUG = false
 
         local p = {}
 
@@ -1968,7 +2084,6 @@ internal static class WikiContent
         end
 
         return p
-        
         """;
 
     public const string RouterBuildingModule =

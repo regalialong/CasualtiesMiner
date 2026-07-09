@@ -41,6 +41,8 @@ public sealed partial class CraftingQuality : IEquatable<CraftingQuality>
 [JsonDerivedType(typeof(BatteryInfo), "battery")]
 public partial class ItemInfo : IEquatable<ItemInfo>
 {
+    public string spriteName;
+
     [SetsRequiredMembers]
     public ItemInfo()
     {

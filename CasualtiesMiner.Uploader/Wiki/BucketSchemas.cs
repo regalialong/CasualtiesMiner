@@ -34,6 +34,7 @@ internal static class BucketSchemas
         """
         {
             "item_id":     { "type": "TEXT" },
+            "sprite_name": { "type": "TEXT" },
             "category":    { "type": "TEXT" },
             "subtype":     { "type": "TEXT" },
             "weight":      { "type": "DOUBLE" },
