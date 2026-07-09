@@ -20,12 +20,12 @@ public static partial class BehaviourMapper
     {
         return new BuildingEntity
         {
-            itemsDropOnDestroy = baseField["itemsDropOnDestroy.Array"].Select(MapItemDrop).ToArray(),
-            health = baseField["health"].AsFloat,
-            requireGround = baseField["requireGround"].AsBool,
             id = baseField["id"].AsString,
             fullName = baseField["fullName"].AsString, // Requires locale text
             description = baseField["fullName"].AsString, // Requires locale text
+            itemsDropOnDestroy = baseField["itemsDropOnDestroy.Array"].Select(MapItemDrop).ToArray(),
+            health = baseField["health"].AsFloat,
+            requireGround = baseField["requireGround"].AsBool,
             skipDescriptionSet = baseField["skipDescriptionSet"].AsBool,
             dropChanceMultiplier = baseField["dropChanceMultiplier"].AsFloat,
             guaranteedDropAmount = baseField["guaranteedDropAmount"].AsInt,

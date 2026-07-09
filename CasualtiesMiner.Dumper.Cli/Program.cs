@@ -4,7 +4,6 @@ using ICSharpCode.Decompiler;
 using ICSharpCode.Decompiler.CSharp;
 using Mono.Cecil;
 using System.Text.Json;
-using CasualtiesMiner.Dumper.Game;
 
 namespace CasualtiesMiner.Dumper.Cli;
 

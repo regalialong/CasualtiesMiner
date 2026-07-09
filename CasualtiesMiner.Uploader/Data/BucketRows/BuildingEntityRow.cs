@@ -6,18 +6,19 @@
 /// </summary>
 public class BuildingEntityRow
 {
-    public IReadOnlyList<string> ItemsDropOnDestroy { get; init; } = [];
-    public double Health { get; init; }
-    public bool RequireGround { get; init; }
-    public string Id { get; init; }
-    public bool SkipDescriptionSet { get; init; }
-    public double DropChanceMultiplier { get; init; }
-    public int GuaranteedDropAmount { get; init; }
-    public IReadOnlyList<string> AlwaysDrop { get; init; } = [];
-    public IReadOnlyList<string> ItemCategoriesToAdd { get; init; } = [];
-    public int BlockFootstepSoundId { get; init; }
-    public bool CantHit { get; init; }
-    public bool Animal { get; init; }
-    public bool IgnoreBodyOptimize { get; init; }
-    public bool Metallic { get; init; }
+    public required string Id { get; init; }
+    public required string SpriteName { get; init; }
+    public required double Health { get; init; }
+    public required double DropChanceMultiplier { get; init; }
+    public required IReadOnlyList<string> ItemsDropOnDestroy { get; init; } = [];
+    public required IReadOnlyList<string> AlwaysDrop { get; init; } = [];
+    public required IReadOnlyList<string> ItemCategoriesToAdd { get; init; } = [];
+    public required int GuaranteedDropAmount { get; init; }
+    public required int BlockFootstepSoundId { get; init; }
+    public required bool RequireGround { get; init; }
+    public required bool SkipDescriptionSet { get; init; }
+    public required bool CantHit { get; init; }
+    public required bool Animal { get; init; }
+    public required bool IgnoreBodyOptimize { get; init; }
+    public required bool Metallic { get; init; }
 }

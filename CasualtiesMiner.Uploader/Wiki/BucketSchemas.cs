@@ -226,6 +226,7 @@ internal static class BucketSchemas
         """
         {
             "building_id":             { "type": "TEXT" },
+            "sprite_name":             { "type": "TEXT" },
             "items_drop_on_destroy":   { "type": "TEXT", "repeated": true },
             "health":                  { "type": "DOUBLE" },
             "require_ground":          { "type": "BOOLEAN" },

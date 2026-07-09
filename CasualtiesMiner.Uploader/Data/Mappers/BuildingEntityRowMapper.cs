@@ -13,13 +13,14 @@ public class BuildingEntityRowMapper
     {
         return new BuildingEntityRow
         {
-            ItemsDropOnDestroy = building.itemsDropOnDestroy.Select(MapDrop).ToList(),
+            Id = building.id,
+            SpriteName = building.spriteName ?? "MISSING",
             Health = building.health,
             RequireGround = building.requireGround,
-            Id = building.id,
             SkipDescriptionSet = building.skipDescriptionSet,
             DropChanceMultiplier = building.dropChanceMultiplier,
             GuaranteedDropAmount = building.guaranteedDropAmount,
+            ItemsDropOnDestroy = building.itemsDropOnDestroy.Select(MapDrop).ToList(),
             AlwaysDrop = building.alwaysDrop.Select(MapDrop).ToList(),
             ItemCategoriesToAdd = building.itemCategoriesToAdd,
             BlockFootstepSoundId = building.blockFootstepSoundId,

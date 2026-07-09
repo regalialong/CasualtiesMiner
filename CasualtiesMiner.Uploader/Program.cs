@@ -11,7 +11,7 @@ namespace CasualtiesMiner.Uploader;
 public static class Program
 {
     public static readonly string DryRunFolder = Path.Combine("dry-run-output");
-    
+
     public static async Task<int> Main(string[] args)
     {
         if (args.Length == 0 || args[0] is "-h" or "--help" or "help")
@@ -52,7 +52,9 @@ public static class Program
 
         Console.WriteLine($"Loaded {itemRows.Count} items from {options.DataPath}.");
         Console.WriteLine($"Loaded {liquidRows.Count} liquids from {options.DataPath}.");
+        Console.WriteLine($"Loaded {blockRows.Count} blocks from {options.DataPath}.");
         Console.WriteLine($"Loaded {moodleRows.Count} moodles from {options.DataPath}.");
+        Console.WriteLine($"Loaded {buildingEntityRows.Count} buildings from {options.DataPath}.");
         Console.WriteLine($"Loaded {locales.Locales.Count} locale(s) (default: {locales.DefaultCode}).");
 
         using var client = new MediaWikiClient(options.ApiUrl, options.RequestDelay);
@@ -75,7 +77,7 @@ public static class Program
             if (Directory.Exists(DryRunFolder))
                 Directory.Delete(DryRunFolder, true);
             Directory.CreateDirectory(DryRunFolder);
-            
+
             Console.WriteLine("Dry run: no edits will be performed.");
         }
 
@@ -350,7 +352,7 @@ public static class Program
             "Regenerate moodle data",
             options.DryRun);
         Console.WriteLine($"  {WikiContent.MoodleDataModuleTitle}: {data}");
-        
+
         Console.WriteLine("== Buildings ==");
         router = await client.EditAsync(
             WikiContent.RouterBuildingModuleTitle,
@@ -358,14 +360,14 @@ public static class Program
             "Update building data router",
             options.DryRun);
         Console.WriteLine($"  {WikiContent.RouterBuildingModuleTitle}: {router}");
-        
+
         data = await client.EditAsync(
             WikiContent.BuildingDataModuleTitle,
             WikiGenerator.BuildBuildingDataModule(buildingRows),
             "Regenerate building data",
             options.DryRun);
         Console.WriteLine($"  {WikiContent.BuildingDataModuleTitle}: {data}");
-        
+
         Console.WriteLine("== Recipes ==");
         router = await client.EditAsync(
             WikiContent.RouterRecipeItemModuleTitle,

@@ -1,6 +1,5 @@
-﻿using CasualtiesMiner.Uploader.Data;
+﻿using CasualtiesMiner.Uploader.Data.BucketRows;
 using System.Text;
-using CasualtiesMiner.Uploader.Data.BucketRows;
 
 namespace CasualtiesMiner.Uploader.Wiki;
 
@@ -34,6 +33,7 @@ internal static partial class WikiGenerator
     private static IEnumerable<(string Key, string Value)> EnumerateBuildingFields(BuildingEntityRow row)
     {
         yield return ("building_id", LuaFormat.String(row.Id));
+        yield return ("sprite_name", LuaFormat.String(row.SpriteName));
         yield return ("items_drop_on_destroy", LuaList(row.ItemsDropOnDestroy));
         yield return ("health", LuaFormat.Num(row.Health));
         yield return ("require_ground", LuaFormat.Bool(row.RequireGround));

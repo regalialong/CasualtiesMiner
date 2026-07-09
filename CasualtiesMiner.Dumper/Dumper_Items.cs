@@ -58,7 +58,7 @@ public sealed partial class Dumper
             }
 
             var itemName = (string)instructions[i + 1].Operand;
-            var spriteName = DumpObjectSprite(assetsParser, itemName);
+            var spriteName = assetsParser.ExtractSprite(itemName);
             var itemDict = new Dictionary<string, object?>();
 
             string[] validTypes = ["ItemInfo"];

@@ -332,30 +332,6 @@ internal static class WikiContent
                 :wikitext("<b>[[File:Icon_decay.png|16px|class=pixelated]]&nbsp;" .. durationStr .. "</b>"))
         end
 
-        ---Format sounds params and writes results to the resulting table. 
-        ---Goes through all of them as long as they are consecutive.
-        local function format_sounds(frame, rowTbl, resTbl)
-            local idx = 1
-            while true do
-                local sound = rowTbl["sound"..idx]
-                mw.log(sound)
-                if not sound then break end
-
-                local caption = rowTbl["sound"..idx.."_caption"]
-
-                local wrapper = mw.html.create("div")
-
-                wrapper:wikitext(frame:expandTemplate{ title = "Audio/tiny", args = { file = sound } })
-
-                if caption then 
-                    wrapper:wikitext("<br>" .. caption)
-                end
-
-                resTbl["sound"..idx] = tostring(wrapper)
-                idx = idx + 1
-            end
-        end
-
         function p.infobox(frame)
             local args = getArgs(frame)
 
@@ -1945,7 +1921,7 @@ internal static class WikiContent
         function p.fetch(buildingId)
             return bucketUtils.firstRow(
                 bucket("building")
-                .select("building_id", "items_drop_on_destroy", "health", "require_ground",
+                .select("building_id", "sprite_name", "items_drop_on_destroy", "health", "require_ground",
                         "skip_description_set", "drop_chance_multiplier", "guaranteed_drop_amount",
                         "always_drop", "item_categories_to_add", "block_footstep_sound_id",
                         "cant_hit", "animal", "ignore_body_optimize", "metallic")
