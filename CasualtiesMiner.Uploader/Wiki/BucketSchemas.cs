@@ -12,6 +12,8 @@ internal static class BucketSchemas
     /// The lightweight reference table that lists every item and its category.
     /// </summary>
     public const string IndexItemBucket = "Item";
+
+    public const string ItemPageBucket = "Item_page";
     public const string LiquidContainerBucket = "Item_liquid";
     public const string BatteryBucket = "Item_battery";
 
@@ -44,6 +46,13 @@ internal static class BucketSchemas
             "wearable":    { "type": "BOOLEAN" },
             "combineable": { "type": "BOOLEAN" },
             "obtainable":  { "type": "BOOLEAN" }
+        }
+        """;
+
+    private const string ItemPageSchema =
+        """
+        {
+            "item_id": { "type": "TEXT" }
         }
         """;
 
@@ -259,6 +268,7 @@ internal static class BucketSchemas
         var pages = new List<(string, string)>
         {
             (IndexItemBucket, IndexSchema),
+            (ItemPageBucket, ItemPageSchema),
             (LiquidContainerBucket, LiquidItemSchema),
             (BatteryBucket, BatteryItemSchema),
             (LiquidBucket, LiquidSchema),

@@ -93,7 +93,7 @@ internal static class WikiContent
         end
 
         -- Overrides text from the result if the given fields are present in the override module
-        function p.addTextOverrides(result, id, lang, suffix)
+        local function addTextOverrides(result, id, lang, suffix)
             local overrides = loadTable(lang, "overrides")
             local overrideText = (overrides[suffix] or {})[id] or {}
             local finalResult = {}
@@ -115,7 +115,7 @@ internal static class WikiContent
             local tbl = loadTable(lang, "items")
             local itemIdLc = string.lower(itemId)
             local res = tbl[itemId] or tbl[itemIdLc]
-            if res ~= nil then return p.addTextOverrides(res, itemId, lang, "items") end
+            if res ~= nil then return addTextOverrides(res, itemId, lang, "items") end
 
             for id, item in pairs(tbl) do
                 if item.name == itemId or string.lower(item.name) == itemIdLc then return item end
@@ -131,7 +131,7 @@ internal static class WikiContent
             local tbl = loadTable(lang, "liquids")
             local liquidIdLc = string.lower(liquidId)
             local res = tbl[liquidId] or tbl[liquidIdLc]
-            if res ~= nil then return p.addTextOverrides(res, liquidId, lang, "liquids") end
+            if res ~= nil then return addTextOverrides(res, liquidId, lang, "liquids") end
 
             for id, liquid in pairs(tbl) do
                 if liquid.name == liquidId or string.lower(liquid.name) == liquidIdLc then return liquid end
@@ -147,7 +147,7 @@ internal static class WikiContent
             local tbl = loadTable(lang, "buildings")
             local buildingIdLc = string.lower(buildingId)
             local res = tbl[buildingId] or tbl[buildingIdLc]
-            if res ~= nil then return p.addTextOverrides(res, buildingId, lang, "buildings") end
+            if res ~= nil then return addTextOverrides(res, buildingId, lang, "buildings") end
 
             for id, building in pairs(tbl) do
                 if building.name == buildingId or string.lower(building.name) == buildingIdLc then return building end
@@ -163,7 +163,7 @@ internal static class WikiContent
             local tbl = loadTable(lang, "moodles")
             local moodleIdLc = string.lower(moodleId)
             local res = tbl[moodleId] or tbl[moodleIdLc]
-            if res ~= nil then return p.addTextOverrides(res, moodleId, lang, "moodles") end
+            if res ~= nil then return addTextOverrides(res, moodleId, lang, "moodles") end
 
             for id, moodle in pairs(tbl) do
                 if moodle.locale_id == moodleId or string.lower(moodle.locale_id) == moodleIdLc then return moodle end
@@ -179,7 +179,7 @@ internal static class WikiContent
             local tbl = loadTable(lang, "blocks")
             local blockIdLc = string.lower(blockId)
             local res = tbl[blockId] or tbl[blockIdLc]
-            if res ~= nil then return p.addTextOverrides(res, blockId, lang, "blocks") end
+            if res ~= nil then return addTextOverrides(res, blockId, lang, "blocks") end
 
             for id, block in pairs(tbl) do
                 if block.name == liquidId or string.lower(block.name) == liquidIdLc then return block end
@@ -207,52 +207,6 @@ internal static class WikiContent
             return tbl[path] or path
         end
 
-        function p.localizeExpr(expr, lang)
-            if not expr or expr == "" then return expr end
-            local tbl = p.wikiUi(lang)
-            local paths = {}
-            for path in pairs(tbl) do
-                if type(path) == "string" and path:find("^body%.") then
-                    paths[#paths + 1] = path
-                end
-            end
-            table.sort(paths, function(a, b) return #a > #b end)
-            for _, path in ipairs(paths) do
-                local label = tbl[path]
-                if label and label ~= "" then
-                    local escaped = path:gsub("([%.%(%)%[%]%-%+])", "%%%1")
-                    expr = expr:gsub(escaped, label)
-                end
-            end
-            if tbl.critical then
-                expr = expr:gsub("%f[%a]critical%f[%A]", tbl.critical)
-            end
-            return mw.text.trim(expr)
-        end
-
-        function p.categoryName(category, lang)
-            return p.ui("cat_" .. (category or "custom"), lang)
-        end
-
-        function p.itemName(frame)
-            local itemId = frame.args[1] or frame.args.item_id
-            local lang = p.resolveLang(frame)
-            local item = p.getItem(itemId, lang)
-            return item and item.name or itemId
-        end
-
-        function p.itemDescription(frame)
-            local itemId = frame.args[1] or frame.args.item_id
-            local lang = p.resolveLang(frame)
-            local item = p.getItem(itemId, lang)
-            return item and item.description or ""
-        end
-
-        function p.uiLabel(frame)
-            local key = frame.args[1] or frame.args.key
-            return p.ui(key, p.resolveLang(frame))
-        end
-
         return p
         """;
 
@@ -272,7 +226,7 @@ internal static class WikiContent
         local Locale = require("Module:Locale")
         local getArgs = require("Module:Arguments").getArgs
         local liquidBucket = require("Module:LiquidBucket")
-        local bit32 = require( 'bit32' )
+        local bit32 = require('bit32')
         local yesNo = require("Module:Yesno")
         local tmpRenderer = require("Module:TMPRender")
         local bucketUtils = require("Module:BucketUtils")
@@ -293,7 +247,7 @@ internal static class WikiContent
             "jump_height_mult_change", "wearable_visual_offset",
         }
 
-        function p.fetch(itemId)
+        local function fetch(itemId)
             local index = bucketUtils.firstRow(bucket("item")
                 .select("item_id", "sprite_name", "category", "subtype", "weight", "value", "tags", "usable", "wearable", "combineable", "obtainable")
                 .where("item_id", itemId)
@@ -332,6 +286,26 @@ internal static class WikiContent
                 :wikitext("<b>[[File:Icon_decay.png|16px|class=pixelated]]&nbsp;" .. durationStr .. "</b>"))
         end
 
+        local function shouldRegisterItemPage(args)
+            if args.register == nil then
+                return true
+            end
+            return yesNo.toBoolean(args.register)
+        end
+
+        local function registerItemPage(itemId, args)
+            if not shouldRegisterItemPage(args) then
+                return
+            end
+
+            local title = mw.title.getCurrentTitle()
+            if not title or title.namespace ~= 0 then
+                return
+            end
+
+            bucket("item_page").put({ item_id = itemId })
+        end
+
         function p.infobox(frame)
             local args = getArgs(frame)
 
@@ -341,7 +315,7 @@ internal static class WikiContent
                 return "[[Category:Errors]]<strong>ItemBucket:</strong> missing item id."
             end
 
-            local row = p.fetch(itemId)
+            local row = fetch(itemId)
             if not row then
                 return "[[Category:Errors]]<strong>ItemBucket:</strong> no Bucket row for '" .. itemId .. "'."
             end
@@ -543,6 +517,8 @@ internal static class WikiContent
                 mw.logObject(resArgs)
             end
 
+            registerItemPage(row.item_id, args)
+
             return frame:expandTemplate{ title = "Item Infobox", args = resArgs }
         end
 
@@ -561,6 +537,8 @@ internal static class WikiContent
                 .run()
 
             local total = #queryRes
+
+            frame.args.register = "false"
 
             local count = 0
             for _, obj in ipairs(queryRes) do
@@ -692,7 +670,43 @@ internal static class WikiContent
             }
 
             for key, value in pairs(row) do
-                resArgs[key] = bucketUtils.paramValue(value)
+                if key == "qualities" then
+                    local qualityLcToCategoryMap = {
+                        -- TODO: Anything to put here?
+                    }
+
+                    resArgs[key] = tostring(bucketUtils.listToTableEl{
+                        caption = frame:preprocess("{{ui icon|quality|{{ui tooltip|Qualities|Specific characteristics of this liquid.}}}}"),
+                        headers = { "Quality", "Count" },
+                        rows = value,
+                        process = function(args)
+                            -- column: Quality 
+                            if args.column == 1 then
+                                local label = bucketUtils.capitalizeFirst(args.value)
+                                local page = "Category:Quality: "..label
+                                local res = "[[:"..page.."|"..label.."]]"
+                                local qualityCategory = "[["..page.."]]"
+                                local qualityCategory2 = qualityLcToCategoryMap[string.lower(args.value)] or ""
+                                return res .. qualityCategory2 .. qualityCategory
+                            -- column: Count 
+                            elseif args.column == 2 then
+                                return args.value or "1"
+                            end
+
+                            return args.value
+                        end,
+                        postprocess = function(args)
+                            for _, row in ipairs(args.rows) do
+                                if #row < 2 then
+                                    -- set 1 amount to columns where amount is not set. 1 is the default.
+                                    row[2] = 1
+                                end
+                            end
+                        end
+                    })
+                else
+                    resArgs[key] = bucketUtils.paramValue(value)
+                end
             end
 
             local hex = row.color and mw.text.trim(tostring(row.color)) or ""
@@ -744,8 +758,6 @@ internal static class WikiContent
         -- Routes language-neutral liquid rows into Bucket tables.
         -- Localized names/descriptions are resolved at render time via Module:Locale.
 
-        local Locale = require("Module:Locale")
-
         local p = {}
 
         local function putRow(r)
@@ -775,7 +787,6 @@ internal static class WikiContent
 
         local Locale = require("Module:Locale")
         local getArgs = require("Module:Arguments").getArgs
-        local bit32 = require('bit32')
         local yesNo = require("Module:Yesno")
         local tmpRenderer = require("Module:TMPRender")
         local bucketUtils = require("Module:BucketUtils")
@@ -790,7 +801,7 @@ internal static class WikiContent
             "name", "health", "toxicity", "hitsound", "stepsound", "no_variation", "metallic", "slippery", "sleep",
         }
 
-        function p.fetch(blockId)
+        local function fetch(blockId)
             local index = bucketUtils.firstRow(bucket("block")
                 .select(unpack(DETAIL_COLUMNS))
                 .where("name", blockId)
@@ -822,7 +833,7 @@ internal static class WikiContent
                 return "[[Category:Errors]]<strong>BlockBucket:</strong> missing block id."
             end
 
-            local row = p.fetch(blockId)
+            local row = fetch(blockId)
             if not row then
                 return "[[Category:Errors]]<strong>BlockBucket:</strong> no Bucket row for '" .. blockId .. "'."
             end
@@ -968,11 +979,19 @@ internal static class WikiContent
             return result and result[1] or nil
         end
 
-        function capitalizeFirst(str)
+        local function capitalizeFirst(str)
             return (str:gsub("^%l", string.upper))
         end
 
-        function p.fetchResultItem(recipeId)
+        local function fetchItemSprite(itemId)
+            local row = firstRow(bucket("item")
+                .select("sprite_name")
+                .where("item_id", itemId)
+                .run())
+            return row ~= nil and row.sprite_name or nil
+        end
+
+        local function fetchResultItem(recipeId)
             return firstRow(bucket("recipe")
                 .join("recipe_result", "recipe_result.recipe_id", "recipe_id")
                 .select("recipe_id", 
@@ -989,7 +1008,7 @@ internal static class WikiContent
                 .run())
         end
 
-        function p.fetchIngridients(recipeId)
+        local function fetchIngridients(recipeId)
             return bucket("recipe")
                 .join("recipe_ingridient", "recipe_ingridient.recipe_id", "recipe_id")
                 .select(
@@ -1038,11 +1057,6 @@ internal static class WikiContent
             return capitalizeFirst(qualityId)
         end
 
-        local function formatItemIconLink(itemId, linkTitle)
-            linkTitle = linkTitle or itemId
-            return "[[File:" .. itemId .. ".png|16x16px|class=pixelated]]"
-        end
-
         local function fetchLiquidColor(liquidId)
             if not liquidId or liquidId == "" then
                 return nil
@@ -1082,8 +1096,9 @@ internal static class WikiContent
                 else
                     object = Locale.getItem(specificId, lang)
                     local name = object and object.name or specificId
+                    local spriteName = fetchItemSprite(specificId)
 
-                    return formatItemIconLink(specificId, name) .. " " .. name
+                    return "[[File:" .. spriteName .. ".png|16x16px|class=pixelated]]" .. " " .. name
                 end
             end
 
@@ -1200,7 +1215,7 @@ internal static class WikiContent
                 return "[[Category:Errors]]<strong>RecipeBucket:</strong> missing recipe id."
             end
 
-            local result = p.fetchResultItem(recipeId)
+            local result = fetchResultItem(recipeId)
             if not result then
                 return "[[Category:Errors]]<strong>RecipeBucket:</strong> no Bucket row for '" .. recipeId .. "'."
             end
@@ -1233,7 +1248,7 @@ internal static class WikiContent
                 name = name .. " " .. count
             end
 
-            local ingredients = p.fetchIngridients(recipeId)
+            local ingredients = fetchIngridients(recipeId)
 
             local divContainer = mw.html.create('div')
                 :addClass("cu-recipes")
@@ -1251,7 +1266,8 @@ internal static class WikiContent
                     :css("background-color", liquidColor)
                     :wikitext("&nbsp;")
             else
-                headImage:wikitext("[[File:" .. resultId .. ".png|48x48px]]")
+                local spriteName = fetchItemSprite(resultId)
+                headImage:wikitext("[[File:" .. spriteName .. ".png|48x48px]]")
             end
 
             local bodyContainer = divContainer:tag("div"):addClass("cu-recipe-body")
@@ -1420,22 +1436,6 @@ internal static class WikiContent
 
         local p = {}
 
-        local TABLE_COLUMNS = {
-            '! scope="col" style="width: 10%" | Moodle',
-            '! scope="col" style="width: 50%" | Description',
-            '! scope="col" style="width: 5%" | [[Unchipped mode|Unchipped]]',
-            '! scope="col" | Cause',
-        }
-
-        local function toBoolean(v)
-            if v == true then return true end
-            if v == false or v == nil then return false end
-
-            v = tostring(v):lower()
-
-            return v == "true" or v == "1" or v == "yes"
-        end
-
         ---Returns the longest length of any word in sentence `str`.
         local function maxWordLen(str)
             local maxLen = 0
@@ -1444,14 +1444,6 @@ internal static class WikiContent
                 maxLen = len > maxLen and len or maxLen
             end
             return maxLen
-        end
-
-        local function buildTableCaption(args)
-            local cap = args.caption
-            if cap ~= nil and tostring(cap) ~= "" then
-                return "|+ " .. tostring(cap)
-            end
-            return "|+"
         end
 
         local function resolveIntensity(entry, args)
@@ -1631,13 +1623,6 @@ internal static class WikiContent
                 .. "</div>"
         end
 
-        local function unchippedCell(row)
-            if row.chipped_only then
-                return "[[File:Icon_cross_red.png|8x8px]]"
-            end
-            return "[[File:Icon_checkmark_green.png|8x8px]]"
-        end
-
         local function fetchGameFieldValue(fieldId)
             if not fieldId or fieldId == "" then return nil end
             local row = bucketUtils.firstRow(bucket("gamefield")
@@ -1733,7 +1718,7 @@ internal static class WikiContent
             return table.concat(parts, "<br />")
         end
 
-        function p.fetch(localeId, intensity)
+        local function fetch(localeId, intensity)
             local results = bucket("moodle")
                 .select(
                     "locale_id", "icon", "icon_src_size", "desc_locale_key", "precondition_for_moodle",
@@ -1801,7 +1786,7 @@ internal static class WikiContent
 
             for idx, entry in ipairs(entries) do
                 local intensity = resolveIntensity(entry, args)
-                local row = p.fetch(entry.id, intensity)
+                local row = fetch(entry.id, intensity)
                 if not row then
                     error("MoodleBucket: no Bucket row for " .. mw.text.nowiki(entry.id))
                 end
@@ -1853,7 +1838,7 @@ internal static class WikiContent
             local ui = Locale.wikiUi(lang)
 
             local intensity = resolveIntensity(entry, args)
-            local row = p.fetch(entry.id, intensity)
+            local row = fetch(entry.id, intensity)
             if not row then
                 error("MoodleBucket: no Bucket row for " .. mw.text.nowiki(entry.id))
             end
@@ -1879,8 +1864,6 @@ internal static class WikiContent
         -- Module:MoodleData
         -- Routes language-neutral moodle rows into Bucket tables.
         -- Localized names/descriptions are resolved at render time via Module:Locale.
-
-        local templateTable = require("Module:MoodleBucket")
 
         local p = {}
 
@@ -1918,7 +1901,7 @@ internal static class WikiContent
 
         local p = {}
 
-        function p.fetch(buildingId)
+        local function fetch(buildingId)
             return bucketUtils.firstRow(
                 bucket("building")
                 .select("building_id", "sprite_name", "items_drop_on_destroy", "health", "require_ground",
@@ -1940,7 +1923,7 @@ internal static class WikiContent
                 return "[[Category:Errors]]<strong>BuildingBucket:</strong> missing building id."
             end
 
-            local row = p.fetch(buildingId)
+            local row = fetch(buildingId)
             if not row then
                 return "[[Category:Errors]]<strong>BuildingBucket:</strong> no Bucket row for '" .. buildingId .. "'."
             end
@@ -2067,8 +2050,6 @@ internal static class WikiContent
         -- Module:BuildingData
         -- Routes language-neutral building rows into Bucket tables.
         -- Localized names/descriptions are resolved at render time via Module:Locale.
-
-        local templateTable = require("Module:BuildingBucket")
 
         local p = {}
 
