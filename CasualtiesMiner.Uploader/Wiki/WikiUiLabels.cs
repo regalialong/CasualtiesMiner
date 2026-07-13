@@ -102,7 +102,7 @@ internal static class WikiUiLabels
     public static readonly IReadOnlyDictionary<string, string> Misc =
         new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["is_chipped"] = "Requires chip: ",
+            ["is_chipped"] = "Requires chip ",
             ["is_chipped_desc"] = "Whether the moodle is only visible when the chip is functional.",
             ["caused_by"] = "Caused by ",
             ["critical"] = "Critical",

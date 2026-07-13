@@ -1,5 +1,7 @@
 namespace CasualtiesMiner.Uploader.Wiki;
 
+using System.Text;
+
 /// <summary>
 /// Hand-authored wiki pages (Lua router, locale resolver, trigger page).
 /// Generated pages: <c>Module:Item/data</c>, <c>Module:Locale/&lt;lang&gt;/*</c>.
@@ -237,6 +239,30 @@ internal static class WikiContent
         local p = {}
         local lang = mw.getContentLanguage()
 
+        local ITEM_ICON_SRC = 20
+        local ITEM_ICON_ZOOM_CLASS = "cu-liquid-zoom-5"
+
+        -- WaterContainerItem.fillSprite per prefab (Unity); not stored in Bucket.
+        local LIQUID_FILL_SPRITES = {
+            bloodbag = "bloodbagfill",
+            bloodbaghuman = "bloodbagfill",
+            sodabottle = "sodabottleinner",
+            heroin = "heroininner",
+            sodiumnitroprusside = "sodiumnitroprussidefill",
+            saline = "salineinner",
+            streptokinase = "streptokinaseinner",
+            craftingbottle = "craftingbottleinner",
+            amiodarone = "sodiumnitroprussidefill",
+            antiserum = "antiseruminner",
+            vasopressin = "sodiumnitroprussidefill",
+            waterjug = "waterjuginner",
+            lemonade = "lemonadeinner",
+            liquidcentrifuge = "liquidcentrifugeinner",
+            icetea = "iceteainner",
+            minibarrel = "minibarrelfill",
+            waterbottle = "waterbottleinner",
+        }
+
         local DETAIL_COLUMNS = {
             "item_id", "weight", "value", "tags", "qualities", "slot_rotation",
             "usable", "usable_on_limb", "usable_with_lmb", "auto_attack", "only_hold_in_hands",
@@ -278,6 +304,153 @@ internal static class WikiContent
             end
 
             return row
+        end
+
+        local function liquidFillSprite(itemId)
+            return LIQUID_FILL_SPRITES[itemId]
+        end
+
+        local function parseLiquidStack(entry)
+            if type(entry) ~= "string" or entry == "" then
+                return nil, nil
+            end
+
+            local liquidId, amount = entry:match("^([^:]+):(.+)$")
+
+            if not liquidId then
+                return nil, nil
+            end
+
+            return liquidId, tonumber(amount)
+        end
+
+        local function defaultLiquidColor(defaultContents)
+            if type(defaultContents) ~= "table" or #defaultContents == 0 then
+                return nil
+            end
+
+            local color
+
+            for i, entry in ipairs(defaultContents) do
+                local liquidId, amount = parseLiquidStack(entry)
+
+                if liquidId and amount and amount > 0 then
+                    local row = liquidBucket.fetch(liquidId)
+                    local c = row and row.color
+                    if c and c ~= "" then
+                        if not color or i == 1 then
+                            color = c
+                        end
+                    end
+                end
+            end
+
+            return color
+        end
+
+        local function normalizeSpriteBase(spriteBase)
+            spriteBase = mw.text.trim(tostring(spriteBase or ""))
+            spriteBase = spriteBase:gsub("%.png$", "")
+
+            return spriteBase
+        end
+
+        local function canonicalFileName(spriteBase)
+            spriteBase = normalizeSpriteBase(spriteBase)
+            if spriteBase == "" then
+                return nil
+            end
+
+            local fileName = spriteBase .. ".png"
+            local title = mw.title.makeTitle("File", fileName)
+            if not title then
+                return fileName
+            end
+
+            local resolved = mw.title.newBatch({ title.prefixedText }):lookupExistence():getTitles()
+            if resolved[1] and resolved[1].exists then
+                return resolved[1].text
+            end
+
+            return fileName
+        end
+
+        local function fileThumb(frame, fileName, width, height, extra)
+            extra = extra or ""
+            if extra ~= "" and not extra:match("^|") then
+                extra = "|" .. extra
+            end
+
+            return frame:preprocess(string.format(
+                "[[File:%s|%dx%dpx%s]]",
+                fileName,
+                width,
+                height,
+                extra
+            ))
+        end
+
+        local function liquidMaskClass(fillSprite)
+            local base = normalizeSpriteBase(fillSprite)
+            if base == "" then
+                return nil
+            end
+
+            return "cu-liquid-mask-" .. base
+        end
+
+        local function buildLiquidIconStack(frame, itemId, row, opts)
+            opts = opts or {}
+            if not row then
+                return nil
+            end
+
+            local fillSprite = liquidFillSprite(itemId)
+            if not fillSprite then
+                return nil
+            end
+
+            local frameSprite = (row.sprite_name and row.sprite_name ~= "") and row.sprite_name or itemId
+            local liquidColor = defaultLiquidColor(row.default_contents) or "#ffffff"
+
+            local srcSize = tonumber(opts.srcSize) or ITEM_ICON_SRC
+
+            local scaleClass = opts.scaleClass or ""
+            local fillAmount = tonumber(opts.fillAmount) or 1
+
+            if fillAmount < 0 then fillAmount = 0 end
+            if fillAmount > 1 then fillAmount = 1 end
+
+            local stackClass = "cu-liquid-icon-stack"
+            if scaleClass ~= "" then
+                stackClass = stackClass .. " " .. scaleClass
+            end
+
+            local root = mw.html.create("span")
+            local stack = root:tag("div")
+                :addClass(stackClass)
+                :css{
+                    ["--liquid-col"] = liquidColor,
+                    ["--fill-amount"] = tostring(fillAmount),
+                    width = srcSize .. "px",
+                    height = srcSize .. "px",
+                    zoom = 5
+                }
+
+            local frameName = canonicalFileName(frameSprite)
+
+            local fillEl = stack:tag("div"):addClass("cu-liquid-fill")
+            local maskClass = liquidMaskClass(fillSprite)
+            if maskClass then
+                fillEl:addClass(maskClass)
+            end
+
+            fillEl:css{ ["background-color"] = liquidColor }
+
+            local frameLayer = stack:tag("div"):addClass("cu-liquid-frame")
+            frameLayer:wikitext(frameName and fileThumb(frame, frameName, srcSize, srcSize, "class=pixelated") or "")
+
+            return tostring(root)
         end
 
         local function format_decay(minutes)
@@ -477,7 +650,7 @@ internal static class WikiContent
                         return args.value
                     end
 
-                local function postprocess(args)
+                    local function postprocess(args)
                         for _, row in ipairs(args.rows) do
                             if #row < 2 then
                                 -- set 1 amount to columns where amount is not set. 1 is the default.
@@ -515,6 +688,11 @@ internal static class WikiContent
             if DEBUG then 
                 mw.log("> resArgs")
                 mw.logObject(resArgs)
+            end
+
+            local stackHtml = buildLiquidIconStack(frame, itemId, row, { scaleClass = ITEM_ICON_ZOOM_CLASS })
+            if stackHtml then
+                resArgs.image_html = stackHtml
             end
 
             registerItemPage(row.item_id, args)
@@ -671,39 +849,7 @@ internal static class WikiContent
 
             for key, value in pairs(row) do
                 if key == "qualities" then
-                    local qualityLcToCategoryMap = {
-                        -- TODO: Anything to put here?
-                    }
-
-                    resArgs[key] = tostring(bucketUtils.listToTableEl{
-                        caption = frame:preprocess("{{ui icon|quality|{{ui tooltip|Qualities|Specific characteristics of this liquid.}}}}"),
-                        headers = { "Quality", "Count" },
-                        rows = value,
-                        process = function(args)
-                            -- column: Quality 
-                            if args.column == 1 then
-                                local label = bucketUtils.capitalizeFirst(args.value)
-                                local page = "Category:Quality: "..label
-                                local res = "[[:"..page.."|"..label.."]]"
-                                local qualityCategory = "[["..page.."]]"
-                                local qualityCategory2 = qualityLcToCategoryMap[string.lower(args.value)] or ""
-                                return res .. qualityCategory2 .. qualityCategory
-                            -- column: Count 
-                            elseif args.column == 2 then
-                                return args.value or "1"
-                            end
-
-                            return args.value
-                        end,
-                        postprocess = function(args)
-                            for _, row in ipairs(args.rows) do
-                                if #row < 2 then
-                                    -- set 1 amount to columns where amount is not set. 1 is the default.
-                                    row[2] = 1
-                                end
-                            end
-                        end
-                    })
+                    bucketUtils.formatQualities(frame, row, resArgs, "liquid")
                 else
                     resArgs[key] = bucketUtils.paramValue(value)
                 end
@@ -1811,7 +1957,7 @@ internal static class WikiContent
                 if idx == 1 then moodleEl:addClass("selected") end
 
                 -- todo: localize tooltip
-                local requiresChipPart = frame:expandTemplate{ title = "Tooltip", args = { (ui.is_chipped or "Requires chip"), "Whether the moodle is only visible when the chip is functional." } }
+                local requiresChipPart = frame:expandTemplate{ title = "Ui Tooltip", args = { (ui.is_chipped or "Requires chip"), "Whether the moodle is only visible when the chip is functional." } }
 
                 descRow:tag("td")
                     :wikitext("<p style='color: var(--text-subtle);'>" .. requiresChipPart .. " " .. (row.chipped_only and templateYes or templateNo) .. "</p>")
