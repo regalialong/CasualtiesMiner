@@ -6,14 +6,8 @@
     </ItemGroup>
 
     <!-- Unity assemblies: metadata-only refs for source generator (compilation.References) -->
-    <ItemGroup Condition="Exists('..\libs\Assembly-CSharp.dll')">
-        <Reference Include="Assembly-CSharp">
-            <HintPath>..\libs\Assembly-CSharp.dll</HintPath>
-            <Private>false</Private>
-        </Reference>
-        <Reference Include="UnityEngine.CoreModule">
-            <HintPath>..\libs\UnityEngine.CoreModule.dll</HintPath>
-            <Private>false</Private>
-        </Reference>
+    <ItemGroup>
+        <!-- This needs to be private because otherwise projects will reference the Gamelibs themselves instead of the source-generated doubles -->
+        <PackageReference Include="CasualtiesUnknown.GameLibs.Steam" Version="7.0.1-ngd.0" PrivateAssets="All"/>
     </ItemGroup>
 </Project>
