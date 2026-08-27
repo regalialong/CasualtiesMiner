@@ -12,7 +12,7 @@ jobs:
       - name: Install dependencies
         run: dotnet restore
       - name: Build
-        run: dotnet build --no-restore
+        run: dotnet build --no-restore -c Release
       - name: Upload build
         uses: actions/upload-artifact@v4
         with:
